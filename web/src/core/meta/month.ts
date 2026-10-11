@@ -69,7 +69,7 @@ export function advanceMonth(g: GameState, preLines: string[] = []): string[] {
     const wasAdult = isAdult(m);
     m.ageMonths += 1;
     if (m.breedCooldown > 0) m.breedCooldown -= 1;
-    if (!wasAdult && isAdult(m)) lines.push(`【成长】${m.name} 成年了，可以上岗与出征`);
+    if (!wasAdult && isAdult(m)) lines.push(`【成长】${m.name} 成年了，可以上岗、出征与转职`);
     const p = express(m.genome);
     if (m.ageMonths === p.agingStart) lines.push(`【衰老】${m.name} 进入衰老期`);
   }
@@ -88,6 +88,7 @@ export function advanceMonth(g: GameState, preLines: string[] = []): string[] {
         wear: 0,
         parents: { family: preg.familyName, partner: preg.partner.name },
         job: null,
+        classId: null,
         breedCooldown: 0,
         devotion: BAL.newbornDevotion,
         suspicion: 0,

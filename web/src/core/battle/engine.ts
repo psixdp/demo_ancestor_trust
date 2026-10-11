@@ -16,7 +16,9 @@ import {
   estimateDamage,
   getUnit,
   inBounds,
+  isMeleeSkill,
   key,
+  knockbackOf,
   manhattan,
   opponents,
   patriarchOf,
@@ -95,6 +97,8 @@ export function makeEnemyUnit(typeId: string, idx: number, difficulty: 1 | 2): U
     nextAttackBonus: 0,
     order: null,
     holdDamageCut: false,
+    spotted: false,
+    tauntedBy: null,
     shaken: false,
     lastStandUsed: false,
     boss: d.isBoss ? { step: 0, crossTiles: null, markTarget: null } : null,
@@ -249,6 +253,7 @@ export function beginNextTurn(s: BattleState) {
     log(s, `${next.name} 恢复了架势`);
   }
   next.defending = false;
+  next.spotted = false;
   next.interceptReady = true;
   if (s.retreatWatch[next.id]) {
     s.tally[next.id].safeRetreats += 1;
@@ -266,6 +271,7 @@ export function endTurn(s: BattleState) {
   let cost = 0.7;
   if (s.turn.acted) cost = 1.0;
   if (s.defendedThisTurn) cost = 0.8;
+  u.tauntedBy = null;
   if (!u.downed) {
     u.nextActAt += (1000 / u.spd) * cost;
     if (s.executeKillRefund) u.nextActAt -= (1000 / u.spd) * cost * 0.5;
@@ -334,6 +340,10 @@ function setBreach(s: BattleState, attacker: Unit, t: Unit, reason: string) {
   t.arm = 0;
   fx(s, 'text', t.id, '破绽!');
   log(s, `${t.name} 陷入破绽（${reason}）`);
+  if (reason === '破甲' && attacker.passives.includes('job.exposeWeakness')) {
+    t.nextActAt += (1000 / t.spd) * 0.25 * (t.delayResist ? 0.5 : 1);
+    log(s, `${attacker.name}【剖开弱点】：${t.name} 的行动被推迟`);
+  }
   if (attacker.side === 'ally') {
     s.tally[attacker.id].breaches += 1;
     if (attacker.kind === 'child' && !s.aiBreachIds.includes(t.id)) s.aiBreachIds.push(t.id);
@@ -409,6 +419,10 @@ function tryIntercept(s: BattleState, attacker: Unit, target: Unit): Unit {
         s.tally[u.id].intercepts += 1;
         fx(s, 'bubble', u.id, rng.pick(INTERCEPT_BARKS));
         log(s, `${u.name} 反应拦截，替 ${target.name} 挡下攻击！`);
+        if (u.passives.includes('job.guardPosture')) {
+          u.defending = true;
+          log(s, `${u.name}【护卫姿态】：进入防御`);
+        }
         return u;
       }
     }
@@ -459,6 +473,7 @@ function strike(s: BattleState, a: Unit, t0: Unit, sk: SkillDef, opts: StrikeOpt
   const verb = opts.execution ? ' 处决' : ` 使用${sk.name}`;
   log(s, `${a.name}${verb} → ${t.name}${est.back ? '（背击）' : ''}：${Math.round(dmg)}`);
   applyDamage(s, a, t, dmg, { boss: opts.fromBoss });
+  if (a.passives.includes('gene.fang') && !a.downed && (opts.execution || isMeleeSkill(sk))) heal(s, a, Math.round(dmg * 0.15));
 
   if (opts.execution) {
     s.tally[a.id].executions += 1;
@@ -473,17 +488,21 @@ function strike(s: BattleState, a: Unit, t0: Unit, sk: SkillDef, opts: StrikeOpt
     if (t.arm <= 0) setBreach(s, a, t, '破甲');
   }
 
-  if (sk.knockback) {
-    const push = simulatePush(s, a.x, a.y, t, sk.knockback, a.id);
+  const kb = knockbackOf(a, sk);
+  if (kb) {
+    const push = simulatePush(s, a.x, a.y, t, kb, a.id);
     const moved = push.x !== t.x || push.y !== t.y;
     t.x = push.x;
     t.y = push.y;
     if (moved) log(s, `${t.name} 被击退`);
     if (push.collide) {
+      const pct = a.passives.includes('job.impactForce') ? 0.15 : 0.1;
       log(s, `${t.name} 撞上${push.hitUnit ? push.hitUnit.name : '障碍'}，失衡！`);
-      applyDamage(s, a, t, t.maxHp * 0.1);
-      if (push.hitUnit) applyDamage(s, a, push.hitUnit, push.hitUnit.maxHp * 0.1);
+      applyDamage(s, a, t, t.maxHp * pct);
+      const other = push.hitUnit;
+      if (other) applyDamage(s, a, other, other.maxHp * pct);
       if (!t.downed) setBreach(s, a, t, '撞击失衡');
+      if (other && !other.downed && other.side !== a.side && a.passives.includes('job.chainImpact')) setBreach(s, a, other, '连锁冲击');
     }
   }
 
@@ -501,7 +520,37 @@ function strike(s: BattleState, a: Unit, t0: Unit, sk: SkillDef, opts: StrikeOpt
     const amt = (1000 / t.spd) * sk.delay * (t.delayResist ? 0.5 : 1);
     t.nextActAt += amt;
     fx(s, 'text', t.id, '推迟');
+    if (a.passives.includes('job.spotter') && t.side !== a.side) {
+      t.spotted = true;
+      log(s, `${a.name}【观测手】：${t.name} 被标定，族长对其伤害 +20%`);
+    }
   }
+}
+
+/** Hits every adjacent enemy; knockback pushes each away from the caster. */
+function novaStrike(s: BattleState, u: Unit, sk: SkillDef): boolean {
+  const hits = opponents(s, u).filter((f) => manhattan(f.x, f.y, u.x, u.y) === 1);
+  if (hits.length === 0) return false;
+  log(s, `${u.name} 发动${sk.name}！`);
+  for (const t of hits) if (!t.downed) strike(s, u, t, sk, { aoe: true });
+  return true;
+}
+
+function applyTaunt(s: BattleState, u: Unit, t: Unit) {
+  t.tauntedBy = u.id;
+  fx(s, 'bubble', u.id, `${t.name}，冲我来！`);
+  log(s, `${u.name} 挑衅 ${t.name}`);
+}
+
+/** Dispatch a targeted skill by kind. Returns false if nothing happened. */
+function performSkill(s: BattleState, u: Unit, t: Unit, sk: SkillDef): boolean {
+  if (sk.target === 'nova') return novaStrike(s, u, sk);
+  if (sk.taunt) {
+    applyTaunt(s, u, t);
+    return true;
+  }
+  strike(s, u, t, sk);
+  return true;
 }
 
 // ---------- player commands ----------
@@ -528,6 +577,8 @@ export function skillTargets(s: BattleState, skillId: string): TargetOption[] {
     case 'line':
     case 'dash':
     case 'enemyAny':
+    case 'nova':
+    case 'taunt':
       return foes.filter((f) => canTarget(s, u, u.x, u.y, f, sk)).map((f) => ({ x: f.x, y: f.y, targetId: f.id }));
     case 'sweep': {
       const out: TargetOption[] = [];
@@ -567,10 +618,12 @@ function useSkill(s: BattleState, u: Unit, skillId: string, tgt: PlayerTarget): 
   switch (sk.target) {
     case 'melee':
     case 'ray':
-    case 'line': {
+    case 'line':
+    case 'nova':
+    case 'taunt': {
       const t = getUnit(s, tgt.targetId);
       if (!t || !canTarget(s, u, u.x, u.y, t, sk)) return false;
-      strike(s, u, t, sk);
+      if (!performSkill(s, u, t, sk)) return false;
       break;
     }
     case 'dash': {
@@ -715,8 +768,7 @@ function aiStandardTurn(s: BattleState, u: Unit) {
   if (c.action === 'skill' && c.skillId && c.targetId) {
     const t = getUnit(s, c.targetId);
     const sk = SKILLS[c.skillId];
-    if (t && !t.downed && canTarget(s, u, u.x, u.y, t, sk)) {
-      strike(s, u, t, sk);
+    if (t && !t.downed && canTarget(s, u, u.x, u.y, t, sk) && performSkill(s, u, t, sk)) {
       setCooldown(u, c.skillId);
       s.turn.acted = true;
     }

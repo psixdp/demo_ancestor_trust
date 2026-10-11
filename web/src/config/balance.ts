@@ -4,7 +4,8 @@ export const BAL = {
   startGold: 1500,
   patriarchBonusHp: 20,
   patriarchBonusAtk: 5,
-  baseAtk: 20,
+  /** shared stat template; gene passives and classes modify it */
+  baseStats: { hp: 100, atk: 20, def: 10, arm: 30, spd: 100, mov: 3, eva: 0.05 },
 
   adultAge: 6,
   pregnancyMonths: 2,

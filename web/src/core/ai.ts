@@ -9,6 +9,7 @@ import {
   effectiveMov,
   estimateDamage,
   inCross,
+  knockbackOf,
   manhattan,
   opponents,
   patriarchOf,
@@ -110,7 +111,7 @@ export function decide(s: BattleState, u: Unit, rng: Rng): Decision {
     });
   }
 
-  const usable = u.skills.filter((sk) => skillReady(u, sk.id) && !SKILLS[sk.id].utility);
+  const usable = u.skills.filter((sk) => skillReady(u, sk.id) && (!SKILLS[sk.id].utility || SKILLS[sk.id].taunt));
   const bossHere = bossPresent(s);
 
   const results: ScoredCandidate[] = [];
@@ -120,7 +121,13 @@ export function decide(s: BattleState, u: Unit, rng: Rng): Decision {
     const intents: { intent: Intent; suit: number; extra: number }[] = [];
     const sk = cand.skillId ? SKILLS[cand.skillId] : null;
 
-    if (sk && target) {
+    if (sk?.taunt && target && pat && isAlly) {
+      const nearPat = manhattan(target.x, target.y, pat.x, pat.y) <= 3 ? 1 : 0.4;
+      const suit = Math.max(0.1, patThreat) * (1.5 - patHpPct) * nearPat;
+      intents.push({ intent: 'guard', suit, extra: u.order?.kind === 'hold' ? 1.5 : 1 });
+    }
+
+    if (sk && target && !sk.taunt) {
       const est = estimateDamage(s, u, target, sk.mult, t.x, t.y);
       const hit = 1 - effectiveEva(target);
       const exp = est.raw * hit;
@@ -133,13 +140,15 @@ export function decide(s: BattleState, u: Unit, rng: Rng): Decision {
       if (u.aiType === 'boss' && target.kind === 'patriarch') extra *= 1.2;
       if (u.aiType === 'beast') extra *= 1.5 - target.hp / target.maxHp;
       if (u.order?.kind === 'focus' && u.order.targetId === target.id) extra *= 2.0;
+      if (u.tauntedBy === target.id) extra *= 2.0;
       intents.push({ intent: 'attack', suit: atkSuit, extra });
 
       const brk = armorBreakOf(u, sk);
       let brkSuit = Math.min(1, brk / Math.max(1, target.arm));
       if (!target.breached && brk >= target.arm) brkSuit = 1.5;
-      if (sk.knockback) {
-        const push = simulatePush(s, t.x, t.y, target, sk.knockback, u.id);
+      const kb = knockbackOf(u, sk);
+      if (kb) {
+        const push = simulatePush(s, t.x, t.y, target, kb, u.id);
         if (push.collide && !target.breached) brkSuit = Math.max(1, brkSuit) * 1.8;
       }
       if (isAlly && pat && manhattan(target.x, target.y, pat.x, pat.y) <= 2) brkSuit *= 1.3;
@@ -147,6 +156,7 @@ export function decide(s: BattleState, u: Unit, rng: Rng): Decision {
       if (target.breached) brkSuit *= 0.3;
       let bExtra = 1;
       if (u.order?.kind === 'focus' && u.order.targetId === target.id) bExtra *= 2.0;
+      if (u.tauntedBy === target.id) bExtra *= 2.0;
       intents.push({ intent: 'break', suit: brkSuit, extra: bExtra });
     }
 
@@ -201,7 +211,8 @@ export function decide(s: BattleState, u: Unit, rng: Rng): Decision {
     const score = raw * (1 + rng.range(-0.02, 0.02));
 
     const moveTxt = t.x === u.x && t.y === u.y ? '原地' : `移至(${t.x},${t.y})`;
-    const actTxt = cand.action === 'defend' ? '防御' : sk && target ? `${sk.name}→${target.name}` : '待机';
+    const actTxt =
+      cand.action === 'defend' ? '防御' : sk?.target === 'nova' ? `${sk.name}（相邻全体）` : sk && target ? `${sk.name}→${target.name}` : '待机';
     return {
       cand,
       score,
@@ -217,7 +228,7 @@ export function decide(s: BattleState, u: Unit, rng: Rng): Decision {
       const sk = SKILLS[st.id];
       for (const f of foes) {
         if (!canTarget(s, u, t.x, t.y, f, sk)) continue;
-        anyAttack = true;
+        if (!sk.taunt) anyAttack = true;
         results.push(
           evaluate({ x: t.x, y: t.y, path: t.path, action: 'skill', skillId: sk.id, targetId: f.id, dir: null }, t, f),
         );

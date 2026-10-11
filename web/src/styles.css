@@ -293,6 +293,19 @@ th {
 .tag.psyche {
   border-style: dashed;
 }
+.tag.gene {
+  border-color: #5a9ec988;
+  color: #a8cfee;
+}
+.tag.job {
+  border-color: #d08a4a88;
+  color: #f0c08a;
+}
+.tag .src {
+  opacity: 0.6;
+  margin-right: 3px;
+  font-size: 10px;
+}
 .card {
   background: var(--panel);
   border: 1px solid var(--line);

@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { ALLELE_MAP, LOCUS_NAMES, PERSONALITY_NAMES } from '../config/alleles';
 import { TRAUMAS } from '../config/balance';
+import { CLASSES, TIER_NAMES } from '../config/classes';
 import { MEMORIES } from '../config/memories';
+import { PASSIVE_SOURCE_NAMES, passiveInfo } from '../config/passives';
 import { SKILLS } from '../config/skills';
 import { express } from '../core/genetics';
 import { LOCI, type Genome, type TraumaId } from '../core/types';
@@ -60,6 +62,27 @@ export function TraumaTag({ id }: { id: TraumaId }) {
   return (
     <span className="tag trauma" title={TRAUMAS[id].desc}>
       {TRAUMAS[id].name}
+    </span>
+  );
+}
+
+/** Gene and class passives with a source label; acquired traits keep using `TraitTag`. */
+export function PassiveTag({ id }: { id: string }) {
+  const p = passiveInfo(id);
+  return (
+    <span className={`tag ${p.source === 'gene' ? 'gene' : p.source === 'job' ? 'job' : 'trait'}`} title={p.desc}>
+      <span className="src">{PASSIVE_SOURCE_NAMES[p.source]}</span>
+      {p.name}
+    </span>
+  );
+}
+
+export function ClassTag({ classId }: { classId: string | null }) {
+  const cls = classId ? CLASSES[classId] : null;
+  if (!cls) return <span className="tag dim">无职业</span>;
+  return (
+    <span className="tag job" title={cls.desc}>
+      {TIER_NAMES[cls.tier]}·{cls.name}
     </span>
   );
 }

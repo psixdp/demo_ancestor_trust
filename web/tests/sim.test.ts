@@ -3,7 +3,8 @@ import { continueRun, finishBattle, settleRun, startRun, type RunState } from '.
 import { children, patriarch } from '../src/core/meta/growth';
 import { advanceMonth } from '../src/core/meta/month';
 import { createNewGame } from '../src/core/meta/newGame';
-import { possess, possessionCandidates } from '../src/core/meta/actions';
+import { changeClass, possess, possessionCandidates } from '../src/core/meta/actions';
+import { CLASS_LIST } from '../src/config/classes';
 import { isAdult } from '../src/core/character';
 import type { GameState } from '../src/core/types';
 
@@ -43,10 +44,27 @@ describe('headless simulation', () => {
     expect(Object.values(outcomes).reduce((a, b) => a + b, 0)).toBe(20);
   });
 
+  it('teams with every class auto battle to an end', () => {
+    for (let seed = 1; seed <= CLASS_LIST.length * 2; seed++) {
+      const g = createNewGame(seed);
+      const pick = (k: number) => CLASS_LIST[(seed + k) % CLASS_LIST.length].id;
+      expect(changeClass(g, patriarch(g).id, pick(0)).ok).toBe(true);
+      children(g)
+        .filter(isAdult)
+        .forEach((c, i) => expect(changeClass(g, c.id, pick(i + 1)).ok).toBe(true));
+      playRun(g);
+      expect(g.month).toBe(2);
+    }
+  });
+
   it('a 24-month loop with runs and possession stays consistent', () => {
     const g = createNewGame(42);
     for (let i = 0; i < 24 && !g.gameOver; i++) {
-      if (i % 2 === 0) playRun(g);
+      // A defeat can leave no adult child; expedition requires one, so that month is skipped.
+      children(g)
+        .filter((c) => isAdult(c) && !c.classId)
+        .forEach((c, k) => changeClass(g, c.id, CLASS_LIST[(i + k) % CLASS_LIST.length].id));
+      if (i % 2 === 0 && children(g).some(isAdult)) playRun(g);
       else advanceMonth(g);
       g.pendingEvent = null;
       g.pendingTraitChoices = [];

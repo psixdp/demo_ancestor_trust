@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { BAL, FACILITIES } from '../../config/balance';
+import { CLASSES, CLASS_LIST, TIER_NAMES } from '../../config/classes';
 import { EXP_NAMES, EXPERIENCE_TRAITS, MEMORIES } from '../../config/memories';
-import { deriveStats, isAdult, lifeStage, monthsToAging, monthsToDeath, possessionPreview } from '../../core/character';
-import { counsel, holdGala, tierUp, train, treat } from '../../core/meta/actions';
+import { classOf, deriveStats, isAdult, lifeStage, monthsToAging, monthsToDeath, possessionPreview } from '../../core/character';
+import { changeClass, counsel, holdGala, tierUp, train, treat } from '../../core/meta/actions';
 import type { Character, GameState } from '../../core/types';
 import { useGame } from '../../store/gameStore';
-import { GenomeTable, Meter, PhenoTags, SkillTag, TraitTag, TraumaTag, personalityName, pct } from '../common';
+import { GenomeTable, Meter, PassiveTag, PhenoTags, SkillTag, TraitTag, TraumaTag, personalityName, pct } from '../common';
 
 function ExpProgress({ c, g }: { c: Character; g: GameState }) {
   const rows = EXPERIENCE_TRAITS.filter((et) => !(et.childOnly && c.isPatriarch)).map((et) => {
@@ -35,6 +36,7 @@ function MemberCard({ c, g }: { c: Character; g: GameState }) {
   const act = useGame((s) => s.act);
   const [open, setOpen] = useState(false);
   const st = deriveStats(c, g.soul);
+  const cls = classOf(c);
   const pv = possessionPreview(c);
   const toAging = monthsToAging(c);
   const adult = isAdult(c);
@@ -61,13 +63,42 @@ function MemberCard({ c, g }: { c: Character; g: GameState }) {
         {c.isPatriarch ? ` · 激活槽 ${c.activeSlots} · 属性系数 ×${c.syncMul.toFixed(3)}` : ''}
       </div>
       <div className="row">
-        天生技能：
-        {st.skills.map((s) => (
-          <SkillTag key={s} id={s} />
-        ))}
+        职业：
+        {adult ? (
+          <select value={c.classId ?? ''} onChange={(e) => act((g2) => changeClass(g2, c.id, e.target.value || null))}>
+            <option value="">无职业</option>
+            {(['basic', 'advanced'] as const).map((tier) => (
+              <optgroup key={tier} label={TIER_NAMES[tier]}>
+                {CLASS_LIST.filter((k) => k.tier === tier).map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.name}
+                    {k.suggestedFrom ? `（建议前置：${CLASSES[k.suggestedFrom].name}）` : ''}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        ) : (
+          <span className="dim">成年后可转职</span>
+        )}
+        {cls && <span className="dim" style={{ fontSize: 12 }}>{cls.desc}</span>}
         <span className="grow" />
         岗位：
         <span className={c.job ? 'gold' : 'dim'}>{c.job ? FACILITIES[c.job].name : adult ? '空闲' : '幼年'}</span>
+      </div>
+      <div className="row" style={{ gap: 2 }}>
+        主动：
+        <SkillTag id="basic" />
+        {st.skills.map((s) => (
+          <SkillTag key={s} id={s} />
+        ))}
+        {c.isPatriarch && <span className="dim" style={{ fontSize: 12 }}>+ 已装配的记忆</span>}
+      </div>
+      <div className="row" style={{ gap: 2 }}>
+        被动：
+        {st.passives.map((p) => (
+          <PassiveTag key={p} id={p} />
+        ))}
       </div>
       {!c.isPatriarch && (
         <div className="col" style={{ gap: 3 }}>

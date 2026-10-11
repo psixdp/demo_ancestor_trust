@@ -1,4 +1,13 @@
-import { ALLELE_MAP, LOCUS_DEFAULT, allelesOf, type AlleleDef, type AlleleSource } from '../config/alleles';
+import {
+  ALLELE_MAP,
+  LOCUS_DEFAULT,
+  STAT_MOD_KEYS,
+  allelesOf,
+  genePassiveId,
+  type AlleleDef,
+  type AlleleSource,
+  type StatMods,
+} from '../config/alleles';
 import type { Rng } from './rng';
 import { LOCI, type AlleleInstance, type Genome, type LocusId, type Phenotype } from './types';
 
@@ -24,25 +33,21 @@ export function express(genome: Genome): Phenotype {
   const ex = {} as Record<LocusId, AlleleDef[]>;
   for (const l of LOCI) ex[l] = expressedOnLocus(genome[l], l);
 
-  const skills: string[] = [];
-  for (const d of ex.L4) if (d.skill && !skills.includes(d.skill)) skills.push(d.skill);
-
-  const atkMul = avg(ex.L5, 'atkMul', 1) * avg(ex.L6, 'atkMul', 1);
+  const mods: StatMods = {};
+  for (const l of LOCI) {
+    for (const k of STAT_MOD_KEYS) {
+      const v = ex[l].reduce((s, d) => s + (d.mods?.[k] ?? 0), 0) / ex[l].length;
+      if (v !== 0) mods[k] = (mods[k] ?? 0) + v;
+    }
+  }
 
   return {
     slots: Math.round(avg(ex.L1, 'slots', 2)),
-    hp: Math.round(avg(ex.L2, 'hp', 100)),
-    def: Math.round(avg(ex.L2, 'def', 10)),
-    arm: Math.round(avg(ex.L2, 'arm', 30)),
-    mov: Math.round(avg(ex.L2, 'mov', 3)),
-    eva: avg(ex.L2, 'eva', 0.05),
-    spd: Math.round(avg(ex.L3, 'spd', 100)),
-    delayResist: ex.L3.some((d) => d.delayResist),
-    skills,
+    mods,
+    passives: LOCI.flatMap((l) => ex[l].map((d) => genePassiveId(d.id))),
     personality: ex.L5[0].personality ?? 'docile',
     devotionMul: avg(ex.L5, 'devotionMul', 1),
     suspicionMul: avg(ex.L5, 'suspicionMul', 1),
-    atkMul,
     agingStart: Math.round(avg(ex.L6, 'agingStart', 36)),
     expressed: Object.fromEntries(LOCI.map((l) => [l, ex[l].map((d) => d.id)])) as Record<LocusId, string[]>,
   };

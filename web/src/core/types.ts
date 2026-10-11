@@ -1,3 +1,5 @@
+import type { StatMods } from '../config/alleles';
+
 // ---------- Genetics ----------
 export type LocusId = 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6';
 export const LOCI: LocusId[] = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'];
@@ -13,18 +15,13 @@ export type Personality = 'docile' | 'zealot' | 'paranoid';
 
 export interface Phenotype {
   slots: number;
-  hp: number;
-  def: number;
-  arm: number;
-  mov: number;
-  eva: number;
-  spd: number;
-  delayResist: boolean;
-  skills: string[];
+  /** stat modifiers from all gene passives (co-dominant pairs averaged per locus) */
+  mods: StatMods;
+  /** `gene.*` passive ids of every expressed allele */
+  passives: string[];
   personality: Personality;
   devotionMul: number;
   suspicionMul: number;
-  atkMul: number;
   agingStart: number;
   /** allele ids that are actually expressed on each locus */
   expressed: Record<LocusId, string[]>;
@@ -55,6 +52,8 @@ export interface Character {
   wear: number;
   parents: { family: string; partner: string } | null;
   job: FacilityId | null;
+  /** combat class; belongs to the body, so a possessed container keeps it */
+  classId: string | null;
   breedCooldown: number;
   devotion: number;
   suspicion: number;
@@ -228,6 +227,10 @@ export interface Unit {
   nextAttackBonus: number;
   order: { kind: 'focus'; targetId: string } | { kind: 'hold' } | null;
   holdDamageCut: boolean;
+  /** delayed by a spotter; takes extra patriarch damage until its next turn */
+  spotted: boolean;
+  /** unit id that taunted this unit; cleared when this unit ends its turn */
+  tauntedBy: string | null;
   shaken: boolean;
   lastStandUsed: boolean;
   boss: BossState | null;

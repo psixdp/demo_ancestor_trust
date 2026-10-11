@@ -206,6 +206,7 @@ export function DebugPage() {
                 wear: 0,
                 parents: { family: '调试', partner: '调试' },
                 job: null,
+                classId: null,
                 breedCooldown: 0,
                 devotion: 60,
                 suspicion: 10,

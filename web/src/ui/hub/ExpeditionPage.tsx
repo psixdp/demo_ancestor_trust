@@ -3,7 +3,8 @@ import { MEMORIES } from '../../config/memories';
 import { deriveStats, isAdult, possessionPreview } from '../../core/character';
 import { children, patriarch } from '../../core/meta/growth';
 import { useGame } from '../../store/gameStore';
-import { SkillTag, TraitTag, personalityName, pct } from '../common';
+import { passiveInfo } from '../../config/passives';
+import { ClassTag, PassiveTag, SkillTag, TraitTag, personalityName, pct } from '../common';
 
 export function ExpeditionPage() {
   const { game, startRun, setTab } = useGame();
@@ -30,6 +31,7 @@ export function ExpeditionPage() {
           👑 {pat.name} · HP {pst.hp} · ATK {pst.atk} · DEF {pst.def} · SPD {pst.spd} · MOV {pst.mov}
         </div>
         <div className="row">
+          <ClassTag classId={pat.classId} />
           技能：
           <SkillTag id="basic" />
           {pst.skills.map((s) => (
@@ -64,6 +66,7 @@ export function ExpeditionPage() {
                 <div className="row">
                   <b>{c.name}</b>
                   <span className="tag">{personalityName(c.genome)}</span>
+                  <ClassTag classId={c.classId} />
                   <span className="grow" />
                   {on && <span className="gold">✓ 随行</span>}
                 </div>
@@ -75,9 +78,15 @@ export function ExpeditionPage() {
                   {possessionPreview(c).sync}%
                 </div>
                 <div>
+                  <SkillTag id="basic" />
                   {st.skills.map((s) => (
                     <SkillTag key={s} id={s} />
                   ))}
+                  {st.passives
+                    .filter((p) => passiveInfo(p).source === 'job' || passiveInfo(p).locus === 'L4')
+                    .map((p) => (
+                      <PassiveTag key={p} id={p} />
+                    ))}
                   {c.traits.map((t) => (
                     <TraitTag key={t} id={t} />
                   ))}

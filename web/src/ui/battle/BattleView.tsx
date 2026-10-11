@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { PERSONALITY_NAMES } from '../../config/alleles';
 import { STANCE_NAMES } from '../../config/balance';
 import { ENEMIES } from '../../config/enemies';
-import { MEMORIES } from '../../config/memories';
+import { PASSIVE_SOURCE_NAMES, passiveInfo } from '../../config/passives';
 import { SKILLS } from '../../config/skills';
 import {
   endTurn,
@@ -366,11 +366,18 @@ function UnitInfo({ u, s }: { u: Unit; s: BattleState }) {
             {st.readyAt > u.turnCount ? `（${st.readyAt - u.turnCount}）` : ''}
           </span>
         ))}
-        {u.passives.map((p) => (
-          <span key={p} className={`tag ${MEMORIES[p]?.source === 'shadow' ? 'shadow' : 'trait'}`} title={MEMORIES[p]?.desc}>
-            {MEMORIES[p]?.name ?? p}
-          </span>
-        ))}
+        {u.passives.map((p) => {
+          const info = passiveInfo(p, u.kind === 'patriarch');
+          const cls = info.source === 'gene' ? 'gene' : info.source === 'job' ? 'job' : info.shadow ? 'shadow' : 'trait';
+          return (
+            <span key={p} className={`tag ${cls}`} title={info.desc}>
+              <span className="src">{PASSIVE_SOURCE_NAMES[info.source]}</span>
+              {info.name}
+            </span>
+          );
+        })}
+        {u.spotted && <span className="tag warn">被观测</span>}
+        {u.tauntedBy && <span className="tag warn">被挑衅：{getUnit(s, u.tauntedBy)?.name}</span>}
         {u.order && <span className="tag">号令：{u.order.kind === 'focus' ? `集火 ${getUnit(s, u.order.targetId)?.name}` : '死守'}</span>}
         {u.boss && (
           <span className="tag warn">

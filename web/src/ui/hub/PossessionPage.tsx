@@ -6,7 +6,7 @@ import { possessionCandidates } from '../../core/meta/actions';
 import { patriarch } from '../../core/meta/growth';
 import type { Character, GameState } from '../../core/types';
 import { useGame } from '../../store/gameStore';
-import { SkillTag, TraitTag, TraumaTag } from '../common';
+import { ClassTag, SkillTag, TraitTag, TraumaTag } from '../common';
 
 function asPatriarchStats(c: Character, g: GameState, syncMul: number) {
   const tmp: Character = { ...c, isPatriarch: true, syncMul };
@@ -59,7 +59,7 @@ export function PossessionPage() {
               <tr>
                 <th>候选</th>
                 <th>夺舍后属性</th>
-                <th>天生技能</th>
+                <th>职业与技能</th>
                 <th>同步率</th>
                 <th>记忆槽</th>
                 <th>剩余寿命</th>
@@ -89,6 +89,7 @@ export function PossessionPage() {
                       SPD {st.spd} MOV {st.mov} ×{syncMul.toFixed(3)}
                     </td>
                     <td>
+                      <ClassTag classId={c.classId} />
                       {st.skills.map((s) => (
                         <SkillTag key={s} id={s} />
                       ))}

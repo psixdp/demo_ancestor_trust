@@ -1,4 +1,5 @@
 import { BAL, FACILITIES, PARTNER_SOURCES } from '../../config/balance';
+import { CLASSES } from '../../config/classes';
 import { MEMORIES } from '../../config/memories';
 import { isAdult, possessionPreview } from '../character';
 import { Rng } from '../rng';
@@ -26,6 +27,17 @@ export function assignJob(g: GameState, charId: string, job: FacilityId | null):
   }
   c.job = job;
   return ok();
+}
+
+/** Free and unconditional for now; replaces the old class's stats, skills and passive. */
+export function changeClass(g: GameState, charId: string, classId: string | null): ActionResult {
+  const c = memberById(g, charId);
+  if (!c) return fail('成员不存在');
+  if (!isAdult(c)) return fail('成年后才能转职');
+  if (classId && !CLASSES[classId]) return fail('职业不存在');
+  if (c.classId === classId) return ok();
+  c.classId = classId;
+  return ok(classId ? `${c.name} 转职为【${CLASSES[classId].name}】` : `${c.name} 卸下了职业`);
 }
 
 export function train(g: GameState, charId: string): ActionResult {

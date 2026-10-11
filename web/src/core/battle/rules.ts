@@ -49,27 +49,46 @@ export function dirTo(fx: number, fy: number, tx: number, ty: number): Dir {
   return dy >= 0 ? 2 : 0;
 }
 
+/** Empty of obstacles and units. Valid place to stop. `ignoreId` is the mover, who does not block their own tile. */
 export function walkable(s: BattleState, x: number, y: number, ignoreId?: string): boolean {
   if (!inBounds(s, x, y) || isObstacle(s, x, y)) return false;
   const u = unitAt(s, x, y);
   return !u || u.id === ignoreId;
 }
 
-/** BFS over 4 directions; units block movement (body blocking). Includes the start tile. */
+/** Step-through check for movement. Same-side units can be passed; enemies and obstacles cannot. */
+export function canTraverse(s: BattleState, mover: Unit, x: number, y: number): boolean {
+  if (!inBounds(s, x, y) || isObstacle(s, x, y)) return false;
+  const occ = unitAt(s, x, y);
+  if (!occ || occ.id === mover.id) return true;
+  return occ.side === mover.side;
+}
+
+/**
+ * BFS over 4 directions within `mov` steps.
+ * Same-side units may be crossed but are not legal stops. Enemies and obstacles block.
+ * Includes the start tile.
+ */
 export function reachable(s: BattleState, u: Unit, mov: number): Map<string, [number, number][]> {
+  const paths = new Map<string, [number, number][]>();
   const res = new Map<string, [number, number][]>();
-  res.set(key(u.x, u.y), [[u.x, u.y]]);
+  const start: [number, number][] = [[u.x, u.y]];
+  paths.set(key(u.x, u.y), start);
+  res.set(key(u.x, u.y), start);
   let frontier: [number, number][] = [[u.x, u.y]];
   for (let step = 0; step < mov; step++) {
     const next: [number, number][] = [];
     for (const [x, y] of frontier) {
-      const path = res.get(key(x, y))!;
+      const path = paths.get(key(x, y))!;
       for (const [dx, dy] of DIRS) {
         const nx = x + dx;
         const ny = y + dy;
-        if (res.has(key(nx, ny))) continue;
-        if (!walkable(s, nx, ny, u.id)) continue;
-        res.set(key(nx, ny), [...path, [nx, ny]]);
+        const k = key(nx, ny);
+        if (paths.has(k)) continue;
+        if (!canTraverse(s, u, nx, ny)) continue;
+        const np: [number, number][] = [...path, [nx, ny]];
+        paths.set(k, np);
+        if (walkable(s, nx, ny, u.id)) res.set(k, np);
         next.push([nx, ny]);
       }
     }
@@ -118,22 +137,40 @@ export function clearLine(s: BattleState, x0: number, y0: number, x1: number, y1
   return true;
 }
 
-export function skillRange(sk: SkillDef): number {
-  return sk.target === 'dash' ? sk.range + 1 : sk.range;
+/** Skill range for this unit, including the light-sense gene on ray skills. */
+export function rangeOf(u: Unit, sk: SkillDef): number {
+  return sk.range + (sk.target === 'ray' && u.passives.includes('gene.lightSense') ? 1 : 0);
+}
+
+export function skillRange(u: Unit, sk: SkillDef): number {
+  return sk.target === 'dash' ? sk.range + 1 : rangeOf(u, sk);
 }
 
 export function maxThreatRange(u: Unit): number {
-  return Math.max(1, ...u.skills.map((s) => skillRange(SKILLS[s.id])).filter((r) => r < 50));
+  return Math.max(1, ...u.skills.map((s) => skillRange(u, SKILLS[s.id])).filter((r) => r < 50));
 }
 
-/** Can `u`, standing at (fx,fy), target `t` with skill `sk`? Only single-target kinds are handled here. */
+export function knockbackOf(u: Unit, sk: SkillDef): number {
+  if (!sk.knockback) return 0;
+  return sk.knockback + (u.passives.includes('gene.ram') ? 1 : 0);
+}
+
+export function isMeleeSkill(sk: SkillDef): boolean {
+  return sk.target === 'melee' || sk.target === 'sweep' || sk.target === 'dash' || sk.target === 'nova';
+}
+
+/** Can `u`, standing at (fx,fy), target `t` with skill `sk`? For `nova`, `t` is any adjacent enemy. */
 export function canTarget(s: BattleState, u: Unit, fx: number, fy: number, t: Unit, sk: SkillDef): boolean {
   const d = manhattan(fx, fy, t.x, t.y);
   switch (sk.target) {
     case 'melee':
       return d === 1;
+    case 'nova':
+      return d === 1 && t.side !== u.side;
+    case 'taunt':
+      return d >= 1 && d <= sk.range && t.side !== u.side;
     case 'ray':
-      return d >= 1 && d <= sk.range && hasLos(s, fx, fy, t.x, t.y);
+      return d >= 1 && d <= rangeOf(u, sk) && (!!sk.ignoreLos || hasLos(s, fx, fy, t.x, t.y));
     case 'line':
       return d >= 2 && d <= sk.range && clearLine(s, fx, fy, t.x, t.y);
     case 'dash':
@@ -206,16 +243,22 @@ export function estimateDamage(
   const def = opts.ignoreDef ? 0 : effectiveDef(t);
   let dmg = Math.max(1, effectiveAtk(s, a) * mult - def);
   const back = isBackstab(fx, fy, t);
-  if (back) dmg *= 1.5;
+  if (back) dmg *= a.passives.includes('job.shadowAim') ? 1.8 : 1.5;
   if (a.kind === 'patriarch' && t.enemyType && s.intelTypes.includes(t.enemyType)) dmg *= 1.15;
+  if (a.kind === 'patriarch' && t.spotted) dmg *= 1.2;
   if (t.isBoss && a.passives.includes('faceJudgement')) dmg *= 1.15;
   if (t.passives.includes('traumaResist') && t.hp < t.maxHp * 0.5) dmg *= 0.85;
+  if (t.passives.includes('job.bulwark')) dmg *= 0.9;
   if (t.holdDamageCut) dmg *= 0.7;
   return { raw: dmg, back };
 }
 
+/** Bonuses from different passive pools add up before multiplying. */
 export function armorBreakOf(u: Unit, sk: SkillDef): number {
-  return sk.armorBreak * (u.passives.includes('breakExpert') ? 1.3 : 1);
+  let bonus = 0;
+  if (u.passives.includes('breakExpert')) bonus += 0.3;
+  if (u.passives.includes('gene.acid')) bonus += 0.4;
+  return sk.armorBreak * (1 + bonus);
 }
 
 /** Simulate knockback from attacker tile; returns final tile and whether it collides. */
@@ -231,6 +274,7 @@ export function simulatePush(
   const [dx, dy] = DIRS[d];
   let x = t.x;
   let y = t.y;
+  if (t.passives.includes('gene.forgeArm')) n -= 1;
   for (let i = 0; i < n; i++) {
     const nx = x + dx;
     const ny = y + dy;

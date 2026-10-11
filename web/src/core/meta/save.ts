@@ -25,12 +25,18 @@ export function saveGame(g: GameState, slot: string) {
   st.setItem(PREFIX + slot, JSON.stringify({ savedAt: new Date().toISOString(), game: g }));
 }
 
+/** Fill fields added after a save was written. */
+function migrate(g: GameState): GameState {
+  for (const m of g.members) m.classId ??= null;
+  return g;
+}
+
 export function loadGame(slot: string): GameState | null {
   const raw = storage()?.getItem(PREFIX + slot);
   if (!raw) return null;
   try {
     const data = JSON.parse(raw) as { game: GameState };
-    return data.game.version === 1 ? data.game : null;
+    return data.game.version === 1 ? migrate(data.game) : null;
   } catch {
     return null;
   }
@@ -59,7 +65,7 @@ export function importGame(text: string): GameState | null {
   try {
     const g = JSON.parse(text) as GameState;
     if (g.version !== 1 || !Array.isArray(g.members)) return null;
-    return g;
+    return migrate(g);
   } catch {
     return null;
   }
