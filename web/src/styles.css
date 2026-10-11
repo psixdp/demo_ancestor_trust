@@ -423,14 +423,16 @@ th {
   line-height: 1.1;
 }
 .timeline .tl.ally {
-  background: #1a2838;
+  background: #1b4a2a;
+  border-color: #3fae5c;
 }
 .timeline .tl.enemy {
-  background: #381a1a;
+  background: #5a1a1a;
+  border-color: #d04040;
 }
 .timeline .tl.patriarch {
-  background: #4a1622;
-  border-color: var(--blood);
+  background: #1c3f73;
+  border-color: #4a90e2;
 }
 .timeline .tl.now {
   outline: 2px solid var(--gold);
@@ -516,20 +518,21 @@ th {
   pointer-events: none;
 }
 .unit.ally {
-  background: #1f3a58;
-  border-color: #3f7fbf;
+  background: #1b5a2e;
+  border-color: #3fc060;
 }
 .unit.patriarch {
-  background: #5a1626;
-  border-color: var(--blood);
+  background: #1c4a8a;
+  border-color: #5aa0ff;
 }
 .unit.enemy {
-  background: #4a1d1a;
-  border-color: #8a3a32;
+  background: #6a1c1c;
+  border-color: #e04848;
 }
 .unit.boss {
+  background: #7a1414;
   border-color: var(--gold);
-  background: #3e2a12;
+  border-width: 3px;
 }
 .unit.active {
   box-shadow: 0 0 0 2px var(--gold), 0 0 14px var(--gold);

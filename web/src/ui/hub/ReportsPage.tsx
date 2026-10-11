@@ -27,7 +27,12 @@ function analyticsCsv(a: Analytics): string {
 
 export function ReportsPage() {
   const game = useGame((s) => s.game);
+  const newGame = useGame((s) => s.newGame);
   if (!game) return null;
+  const restart = (sameSeed: boolean) => {
+    if (!confirm(sameSeed ? `用相同种子 ${game.seed} 重新开始？当前进度将丢失（手动存档不受影响）。` : '用新的随机种子重新开始？当前进度将丢失（手动存档不受影响）。')) return;
+    newGame(sameSeed ? game.seed : undefined);
+  };
   const a = game.analytics;
   const intents: Intent[] = ['attack', 'break', 'guard', 'retreat', 'regroup', 'defend', 'advance'];
 
@@ -37,6 +42,10 @@ export function ReportsPage() {
         <h2 className="grow">月报与数据</h2>
         <button onClick={() => download(`ancestor-trust-m${game.month}.json`, exportGame(game))}>导出存档 JSON</button>
         <button onClick={() => download(`analytics-m${game.month}.csv`, analyticsCsv(a), 'text/csv')}>导出埋点 CSV</button>
+        <button onClick={() => restart(true)}>相同种子重开</button>
+        <button className="primary" onClick={() => restart(false)}>
+          重新开始游戏
+        </button>
       </div>
       <div className="panel col">
         <h4>验证数据（本局累计）</h4>
