@@ -116,7 +116,7 @@ export function createNewGame(seed: number): GameState {
     license: false,
     members: [patriarch, adrian, vera, luca],
     pregnancies: [],
-    market: { labor: [], dwarf: [], elf: [], refreshIn: 3 },
+    market: { labor: [], dwarf: [], elf: [], refreshIn: BAL.marketRefresh },
     perks: { debtCollateral: false, workMonitor: false },
     soul: {
       soulXP: 0,

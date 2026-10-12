@@ -13,6 +13,7 @@ import { MarriagePage } from './ui/hub/MarriagePage';
 import { MemoryPage } from './ui/hub/MemoryPage';
 import { PossessionPage } from './ui/hub/PossessionPage';
 import { ReportsPage } from './ui/hub/ReportsPage';
+import { TuningPage } from './ui/hub/TuningPage';
 import { isAdult } from './core/character';
 
 const TABS: { id: Tab; name: string }[] = [
@@ -30,7 +31,7 @@ function Hub() {
   if (!game) return null;
   const idle = game.members.filter((m) => isAdult(m) && !m.job && !m.isPatriarch).length;
   const tabs = debug.enabled
-    ? [...TABS, { id: 'debug' as Tab, name: '调试面板' }, { id: 'creator' as Tab, name: '角色创建器' }]
+    ? [...TABS, { id: 'debug' as Tab, name: '调试面板' }, { id: 'creator' as Tab, name: '角色创建器' }, { id: 'tuning' as Tab, name: '数值配置' }]
     : TABS;
   const onNext = () => {
     if (idle > 0 && !confirm(`有 ${idle} 名成年子嗣未安排岗位，确定推进到下月？`)) return;
@@ -56,6 +57,7 @@ function Hub() {
         {tab === 'reports' && <ReportsPage />}
         {tab === 'debug' && <DebugPage />}
         {tab === 'creator' && <CharacterCreatorPage />}
+        {tab === 'tuning' && <TuningPage />}
       </div>
       {!game.gameOver && (
         <button className="primary next-month" onClick={onNext}>

@@ -131,6 +131,25 @@ th {
 .grow {
   flex: 1;
 }
+
+.tuning-list td,
+.tuning-matrix td,
+.tuning-matrix th {
+  vertical-align: middle;
+}
+.tuning-matrix {
+  width: auto;
+}
+.tuning-matrix td {
+  white-space: nowrap;
+}
+.tuned-row {
+  background: #2c2018;
+}
+input.tuned {
+  border-color: var(--warn);
+  color: var(--warn);
+}
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);

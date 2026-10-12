@@ -8,7 +8,7 @@ import { randomSeed } from '../core/rng';
 import type { BattleState, GameState } from '../core/types';
 
 export type Screen = 'title' | 'hub' | 'battle';
-export type Tab = 'family' | 'marriage' | 'facilities' | 'memory' | 'possession' | 'expedition' | 'reports' | 'debug' | 'creator';
+export type Tab = 'family' | 'marriage' | 'facilities' | 'memory' | 'possession' | 'expedition' | 'reports' | 'debug' | 'creator' | 'tuning';
 
 export interface DebugFlags {
   enabled: boolean;

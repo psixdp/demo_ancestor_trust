@@ -18,11 +18,10 @@ const DEFAULT_SPEC = {
 } as Record<LocusId, [string, string]>;
 
 export function DebugPage() {
-  const { game, edit, debug, setDebug, aiDelay, setAiDelay, toast } = useGame();
+  const { game, edit, debug, setDebug, aiDelay, setAiDelay } = useGame();
   const [charId, setCharId] = useState('');
   const [months, setMonths] = useState(1);
   const [spawnGenome, setSpawnGenome] = useState<Genome>(() => makeGenome(DEFAULT_SPEC));
-  const [balText, setBalText] = useState(() => JSON.stringify(BAL, null, 1));
   if (!game) return null;
   const c = game.members.find((m) => m.id === charId);
 
@@ -196,26 +195,6 @@ export function DebugPage() {
         >
           生成
         </button>
-      </div>
-
-      <div className="panel col">
-        <h4>数值配置（BAL，运行时修改）</h4>
-        <textarea rows={12} value={balText} onChange={(e) => setBalText(e.target.value)} style={{ fontFamily: 'monospace', fontSize: 12 }} />
-        <div className="row">
-          <button
-            onClick={() => {
-              try {
-                Object.assign(BAL, JSON.parse(balText));
-                toast('配置已应用');
-              } catch {
-                toast('JSON 格式错误', false);
-              }
-            }}
-          >
-            应用
-          </button>
-          <button onClick={() => setBalText(JSON.stringify(BAL, null, 1))}>重新读取</button>
-        </div>
       </div>
     </div>
   );

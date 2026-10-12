@@ -3,15 +3,7 @@ import { INTENT_NAMES } from '../../config/balance';
 import { exportGame } from '../../core/meta/save';
 import type { Analytics, Intent, Personality } from '../../core/types';
 import { useGame } from '../../store/gameStore';
-
-function download(name: string, text: string, type = 'application/json') {
-  const blob = new Blob([text], { type });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+import { download } from '../common';
 
 function analyticsCsv(a: Analytics): string {
   const rows: string[][] = [['metric', 'key', 'value']];

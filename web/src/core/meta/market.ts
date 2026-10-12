@@ -1,4 +1,4 @@
-import { PARTNER_SOURCES } from '../../config/balance';
+import { BAL, PARTNER_SOURCES } from '../../config/balance';
 import { PARTNER_NAMES } from '../../config/texts';
 import { randomGenome } from '../genetics';
 import type { Rng } from '../rng';
@@ -18,5 +18,5 @@ function makePartner(g: GameState, rng: Rng, source: PartnerSource): Partner {
 
 export function refreshMarket(g: GameState, rng: Rng) {
   const mk = (src: PartnerSource) => Array.from({ length: PARTNER_SOURCES[src].count }, () => makePartner(g, rng, src));
-  g.market = { labor: mk('labor'), dwarf: mk('dwarf'), elf: mk('elf'), refreshIn: 3 };
+  g.market = { labor: mk('labor'), dwarf: mk('dwarf'), elf: mk('elf'), refreshIn: BAL.marketRefresh };
 }

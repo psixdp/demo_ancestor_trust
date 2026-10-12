@@ -179,7 +179,7 @@ export function FamilyPage() {
       <div className="row">
         <h2 className="grow">家族成员（{game.members.length}）</h2>
         <button disabled={game.monthFlags.gala} onClick={() => act(holdGala)}>
-          家族公益晚宴（{BAL.galaCost}，全族疑心 −10）
+          家族公益晚宴（{BAL.galaCost}，全族疑心 {BAL.galaSuspicion}）
         </button>
         <button disabled={game.tier === 'B'} onClick={() => act(tierUp)} title={`需要牌照 + 现金 ${BAL.tierUpGold}，花费 ${BAL.tierUpCost}`}>
           {game.tier === 'B' ? '已是 B 级' : `申请晋升 B 级（需牌照，现金≥${BAL.tierUpGold}，花费 ${BAL.tierUpCost}）`}

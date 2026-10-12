@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LOCUS_NAMES } from '../../config/alleles';
-import { PARTNER_SOURCES } from '../../config/balance';
+import { BAL, PARTNER_SOURCES } from '../../config/balance';
 import { isAdult } from '../../core/character';
 import { previewOffspring } from '../../core/genetics';
 import { breedWith } from '../../core/meta/actions';
@@ -28,7 +28,7 @@ export function MarriagePage() {
   return (
     <div className="col">
       <h2>联姻育种</h2>
-      <div className="dim">市场将在 {game.market.refreshIn} 个月后刷新。孕期 2 个月，孕育后家族方冷却 3 个月。</div>
+      <div className="dim">市场将在 {game.market.refreshIn} 个月后刷新。孕期 {BAL.pregnancyMonths} 个月，孕育后家族方冷却 {BAL.breedCooldown} 个月。</div>
       <div className="panel col">
         <h4>① 选择家族方</h4>
         <div className="row">
