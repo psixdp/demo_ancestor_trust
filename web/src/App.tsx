@@ -4,6 +4,7 @@ import { BattleView } from './ui/battle/BattleView';
 import { Modals } from './ui/Modals';
 import { TitleScreen } from './ui/TitleScreen';
 import { TopBar } from './ui/TopBar';
+import { CharacterCreatorPage } from './ui/hub/CharacterCreatorPage';
 import { DebugPage } from './ui/hub/DebugPage';
 import { ExpeditionPage } from './ui/hub/ExpeditionPage';
 import { FacilitiesPage } from './ui/hub/FacilitiesPage';
@@ -28,7 +29,9 @@ function Hub() {
   const { game, tab, setTab, nextMonth, debug } = useGame();
   if (!game) return null;
   const idle = game.members.filter((m) => isAdult(m) && !m.job && !m.isPatriarch).length;
-  const tabs = debug.enabled ? [...TABS, { id: 'debug' as Tab, name: '调试面板' }] : TABS;
+  const tabs = debug.enabled
+    ? [...TABS, { id: 'debug' as Tab, name: '调试面板' }, { id: 'creator' as Tab, name: '角色创建器' }]
+    : TABS;
   const onNext = () => {
     if (idle > 0 && !confirm(`有 ${idle} 名成年子嗣未安排岗位，确定推进到下月？`)) return;
     nextMonth();
@@ -52,6 +55,7 @@ function Hub() {
         {tab === 'expedition' && <ExpeditionPage />}
         {tab === 'reports' && <ReportsPage />}
         {tab === 'debug' && <DebugPage />}
+        {tab === 'creator' && <CharacterCreatorPage />}
       </div>
       {!game.gameOver && (
         <button className="primary next-month" onClick={onNext}>

@@ -41,6 +41,16 @@ export type ExpKey =
   | 'trainings'
   | 'possessionsWitnessed';
 
+export interface BaseStats {
+  hp: number;
+  atk: number;
+  def: number;
+  arm: number;
+  spd: number;
+  mov: number;
+  eva: number;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -54,6 +64,8 @@ export interface Character {
   job: FacilityId | null;
   /** combat class; belongs to the body, so a possessed container keeps it */
   classId: string | null;
+  /** test-only base stat template from the character creator; offspring and possessed bodies use the shared one */
+  baseTemplate?: { name: string; stats: BaseStats };
   breedCooldown: number;
   devotion: number;
   suspicion: number;

@@ -56,7 +56,7 @@ export function bodyPassives(c: Character): string[] {
 export function deriveStats(c: Character, soul: Soul): DerivedStats {
   const p = express(c.genome);
   const cls = classOf(c);
-  const base = BAL.baseStats;
+  const base = c.baseTemplate?.stats ?? BAL.baseStats;
   const mod = (k: keyof StatMods) => (p.mods[k] ?? 0) + (cls?.mods[k] ?? 0);
 
   let hp = base.hp + mod('hp');

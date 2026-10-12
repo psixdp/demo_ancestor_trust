@@ -9,7 +9,7 @@ import { useGame } from '../../store/gameStore';
 import { ClassTag, SkillTag, TraitTag, TraumaTag } from '../common';
 
 function asPatriarchStats(c: Character, g: GameState, syncMul: number) {
-  const tmp: Character = { ...c, isPatriarch: true, syncMul };
+  const tmp: Character = { ...c, isPatriarch: true, syncMul, baseTemplate: undefined };
   return deriveStats(tmp, g.soul);
 }
 

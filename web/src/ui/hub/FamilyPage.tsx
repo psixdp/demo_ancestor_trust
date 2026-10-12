@@ -52,6 +52,11 @@ function MemberCard({ c, g }: { c: Character; g: GameState }) {
           {toAging > 0 ? `（距衰老 ${toAging} 月）` : `（${monthsToDeath(c)} 月后衰亡）`}
         </span>
         <span className="grow" />
+        {c.baseTemplate && (
+          <span className="tag warn" title="角色创建器的自定义基础属性模板，不遗传，夺舍后回到默认模板">
+            模板·{c.baseTemplate.name}
+          </span>
+        )}
         {!c.isPatriarch && <span className="tag">{personalityName(c.genome)}</span>}
       </div>
       <div>

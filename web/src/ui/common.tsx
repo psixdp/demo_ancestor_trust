@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
-import { ALLELE_MAP, LOCUS_NAMES, PERSONALITY_NAMES } from '../config/alleles';
+import { ALLELE_MAP, LOCUS_NAMES, PERSONALITY_NAMES, allelesOf } from '../config/alleles';
 import { TRAUMAS } from '../config/balance';
 import { CLASSES, TIER_NAMES } from '../config/classes';
 import { MEMORIES } from '../config/memories';
 import { PASSIVE_SOURCE_NAMES, passiveInfo } from '../config/passives';
 import { SKILLS } from '../config/skills';
 import { express } from '../core/genetics';
-import { LOCI, type Genome, type TraumaId } from '../core/types';
+import { LOCI, type Genome, type LocusId, type TraumaId } from '../core/types';
 
 export function Meter({
   label,
@@ -133,6 +133,36 @@ export function GenomeTable({ genome }: { genome: Genome }) {
               );
             })}
             <td className="gold">→ {p.expressed[l].map((id) => ALLELE_MAP[id].name).join('+')}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export function GenomeEditor({ genome, onChange }: { genome: Genome; onChange: (l: LocusId, i: 0 | 1, id: string, dormant: boolean) => void }) {
+  return (
+    <table className="genome">
+      <tbody>
+        {LOCI.map((l) => (
+          <tr key={l}>
+            <td className="dim">{LOCUS_NAMES[l]}</td>
+            {([0, 1] as const).map((i) => (
+              <td key={i}>
+                <select value={genome[l][i].id} onChange={(e) => onChange(l, i, e.target.value, genome[l][i].dormant)}>
+                  {allelesOf(l).map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.source !== 'common' ? (a.source === 'dwarf' ? '（矮人）' : '（精灵）') : ''}
+                    </option>
+                  ))}
+                </select>
+                <label style={{ fontSize: 11 }}>
+                  <input type="checkbox" checked={genome[l][i].dormant} onChange={(e) => onChange(l, i, genome[l][i].id, e.target.checked)} />
+                  休眠
+                </label>
+              </td>
+            ))}
           </tr>
         ))}
       </tbody>

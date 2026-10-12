@@ -1,41 +1,12 @@
 import { useState } from 'react';
-import { LOCUS_NAMES, allelesOf } from '../../config/alleles';
 import { BAL } from '../../config/balance';
 import { EXP_NAMES, MEMORY_LIST } from '../../config/memories';
 import { makeGenome } from '../../core/genetics';
 import { advanceMonth } from '../../core/meta/month';
 import { nextId } from '../../core/meta/growth';
-import { LOCI, type Character, type ExpKey, type Genome, type LocusId, type TraumaId } from '../../core/types';
+import type { Character, ExpKey, Genome, LocusId, TraumaId } from '../../core/types';
 import { useGame } from '../../store/gameStore';
-
-function GenomeEditor({ genome, onChange }: { genome: Genome; onChange: (l: LocusId, i: 0 | 1, id: string, dormant: boolean) => void }) {
-  return (
-    <table className="genome">
-      <tbody>
-        {LOCI.map((l) => (
-          <tr key={l}>
-            <td className="dim">{LOCUS_NAMES[l]}</td>
-            {([0, 1] as const).map((i) => (
-              <td key={i}>
-                <select value={genome[l][i].id} onChange={(e) => onChange(l, i, e.target.value, genome[l][i].dormant)}>
-                  {allelesOf(l).map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-                <label style={{ fontSize: 11 }}>
-                  <input type="checkbox" checked={genome[l][i].dormant} onChange={(e) => onChange(l, i, genome[l][i].id, e.target.checked)} />
-                  休眠
-                </label>
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
+import { GenomeEditor } from '../common';
 
 const DEFAULT_SPEC = {
   L1: ['wide', 'wide'],

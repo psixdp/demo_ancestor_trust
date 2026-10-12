@@ -252,6 +252,7 @@ export function possess(g: GameState, containerId: string, equipped: string[]): 
   });
 
   c.isPatriarch = true;
+  delete c.baseTemplate;
   c.syncMul = pv.syncMul;
   c.activeSlots = pv.active;
   c.traits = [];
