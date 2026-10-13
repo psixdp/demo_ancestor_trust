@@ -1,4 +1,4 @@
-﻿import { INTERCEPT_FACTOR } from '../../config/balance';
+import { BAL, INTERCEPT_FACTOR } from '../../config/balance';
 import { ENEMIES, ENCOUNTERS, LAYOUTS } from '../../config/enemies';
 import { SKILLS, type SkillDef } from '../../config/skills';
 import { INTERCEPT_BARKS, BARKS, SLACK_BARKS } from '../../config/texts';
@@ -338,8 +338,11 @@ function setBreach(s: BattleState, attacker: Unit, t: Unit, reason: string) {
   if (t.breached || t.downed) return;
   t.breached = true;
   t.arm = 0;
+  // Losing balance wipes the target's accumulated action progress, so it waits a full interval from now.
+  const now = getUnit(s, s.activeId)?.nextActAt ?? t.nextActAt;
+  t.nextActAt = Math.max(t.nextActAt, now + 1000 / t.spd);
   fx(s, 'text', t.id, '破绽!');
-  log(s, `${t.name} 陷入破绽（${reason}）`);
+  log(s, `${t.name} 陷入破绽（${reason}），行动进度清空`);
   if (reason === '破甲' && attacker.passives.includes('job.exposeWeakness')) {
     t.nextActAt += (1000 / t.spd) * 0.25 * (t.delayResist ? 0.5 : 1);
     log(s, `${attacker.name}【剖开弱点】：${t.name} 的行动被推迟`);
@@ -605,11 +608,25 @@ export function skillTargets(s: BattleState, skillId: string): TargetOption[] {
   }
 }
 
+/** Free tile next to `t` where the patriarch lands for a lunge execution; nearest to the patriarch first. */
+function lungeTile(s: BattleState, u: Unit, t: Unit): [number, number] | null {
+  const tiles = DIRS.map(([dx, dy]) => [t.x + dx, t.y + dy] as [number, number]).filter(([x, y]) => walkable(s, x, y, u.id));
+  tiles.sort((a, b) => manhattan(u.x, u.y, a[0], a[1]) - manhattan(u.x, u.y, b[0], b[1]));
+  return tiles[0] ?? null;
+}
+
+function canExecute(s: BattleState, u: Unit, t: Unit): boolean {
+  if (!t.breached) return false;
+  const d = manhattan(u.x, u.y, t.x, t.y);
+  if (d === 1) return true;
+  return u.passives.includes('bloodLunge') && d <= BAL.bloodLungeRange && !!lungeTile(s, u, t);
+}
+
 export function executeTargets(s: BattleState): TargetOption[] {
   const u = getUnit(s, s.activeId);
   if (!u || s.turn.acted || u.kind !== 'patriarch') return [];
   return opponents(s, u)
-    .filter((f) => f.breached && manhattan(f.x, f.y, u.x, u.y) === 1)
+    .filter((f) => canExecute(s, u, f))
     .map((f) => ({ x: f.x, y: f.y, targetId: f.id }));
 }
 
@@ -694,12 +711,33 @@ export function playerSkill(s: BattleState, skillId: string, tgt: PlayerTarget):
 export function playerExecute(s: BattleState, targetId: string): boolean {
   const u = getUnit(s, s.activeId);
   const t = getUnit(s, targetId);
-  if (!u || !t || s.turn.acted) return false;
-  if (!t.breached || manhattan(u.x, u.y, t.x, t.y) !== 1) return false;
+  if (!u || !t || s.turn.acted || u.kind !== 'patriarch' || !canExecute(s, u, t)) return false;
+  if (manhattan(u.x, u.y, t.x, t.y) !== 1) {
+    const [x, y] = lungeTile(s, u, t)!;
+    u.x = x;
+    u.y = y;
+    s.turn.moved = true;
+    fx(s, 'text', u.id, '闪现!');
+    log(s, `${u.name}【血影闪现】至 ${t.name} 身旁`);
+  }
+  u.facing = dirTo(u.x, u.y, t.x, t.y);
   strike(s, u, t, SKILLS.basic, { execution: true });
   s.turn.acted = true;
+  hasteAllies(s, u);
   checkResult(s);
   return true;
+}
+
+/** A successful execution pulls every ally's next action forward, but never before the current moment. */
+function hasteAllies(s: BattleState, pat: Unit) {
+  const now = pat.nextActAt;
+  let any = false;
+  for (const c of alive(s)) {
+    if (c.side !== pat.side || c.id === pat.id) continue;
+    c.nextActAt = Math.max(now, c.nextActAt - (1000 / c.spd) * BAL.executionHaste);
+    any = true;
+  }
+  if (any) log(s, `处决震慑全场：队友行动提前 ${Math.round(BAL.executionHaste * 100)}%`);
 }
 
 export function playerDefend(s: BattleState) {

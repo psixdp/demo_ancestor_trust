@@ -28,6 +28,7 @@ export function saveGame(g: GameState, slot: string) {
 /** Fill fields added after a save was written. */
 function migrate(g: GameState): GameState {
   for (const m of g.members) m.classId ??= null;
+  if (!g.soul.pool.includes('bloodLunge')) g.soul.pool.push('bloodLunge');
   return g;
 }
 

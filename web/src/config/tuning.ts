@@ -137,6 +137,15 @@ export const TUNING_GROUPS: TuningGroup[] = [
     ],
   },
   {
+    id: 'execution',
+    name: '破绽与处决',
+    kind: 'list',
+    fields: [
+      f('bloodLungeRange', '血影闪现处决距离（格）', 1, { min: 1 }),
+      f('executionHaste', '处决后队友行动提前', 5, { pct: true, max: 1 }),
+    ],
+  },
+  {
     id: 'expedition',
     name: '出征结算',
     kind: 'list',

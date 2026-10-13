@@ -45,6 +45,11 @@ export const BAL = {
   mutateActivate: { mutagen: 3, gold: 200 },
   mutateRandom: { mutagen: 2, gold: 100 },
 
+  /** max distance for the 血影闪现 lunge execution */
+  bloodLungeRange: 4,
+  /** share of each ally's action interval pulled forward after an execution */
+  executionHaste: 0.25,
+
   floorHeal: 0.2,
   defeatLootLoss: 0.5,
   maxTraumas: 3,

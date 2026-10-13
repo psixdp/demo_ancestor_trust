@@ -36,9 +36,9 @@ export function createNewGame(seed: number): GameState {
     generation: 1,
     ageMonths: 20,
     isPatriarch: true,
-    activeSlots: 2,
+    activeSlots: 3,
     genome: makeGenome({
-      L1: ['mundane', 'wide'],
+      L1: ['wide', 'wide'],
       L2: ['balanced', 'shadow'],
       L3: ['normalSpeed', 'swift'],
       L4: ['fang', 'ram'],
@@ -96,7 +96,7 @@ export function createNewGame(seed: number): GameState {
     experience: { trainings: 3 },
     parents: { family: 'c1', partner: '劳务派遣所合同工' },
     genome: makeGenome({
-      L1: ['mundane', 'mundane'],
+      L1: ['mundane', 'wide'],
       L2: ['balanced', 'shadow'],
       L3: ['normalSpeed', 'swift'],
       L4: ['fang', 'acid'],
@@ -120,9 +120,9 @@ export function createNewGame(seed: number): GameState {
     perks: { debtCollateral: false, workMonitor: false },
     soul: {
       soulXP: 0,
-      pool: ['sweep', 'dash'],
-      equipped: ['sweep', 'dash'],
-      presets: { battle: ['sweep', 'dash'], work: [] },
+      pool: ['sweep', 'dash', 'bloodLunge'],
+      equipped: ['sweep', 'dash', 'bloodLunge'],
+      presets: { battle: ['sweep', 'dash', 'bloodLunge'], work: [] },
       intel: {},
       stats: { battles: 0, defeats: 0, possessions: 0, bossKills: 0 },
     },

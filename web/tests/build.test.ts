@@ -1,4 +1,4 @@
-﻿import { SKILLS } from '../src/config/skills';
+import { SKILLS } from '../src/config/skills';
 import { armorBreakOf, canTarget, estimateDamage, knockbackOf, simulatePush } from '../src/core/battle/rules';
 import { deriveStats } from '../src/core/character';
 import { changeClass } from '../src/core/meta/actions';
