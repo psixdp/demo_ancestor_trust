@@ -4,7 +4,7 @@ import { SKILLS, type SkillDef } from '../../config/skills';
 import { INTERCEPT_BARKS, BARKS, SLACK_BARKS } from '../../config/texts';
 import { decide } from '../ai';
 import { Rng } from '../rng';
-import type { BattleState, Dir, Intent, Stance, Unit, UnitTally } from '../types';
+import type { BattleFx, BattleState, Dir, Intent, Stance, Unit, UnitTally } from '../types';
 import {
   DIRS,
   alive,
@@ -189,9 +189,29 @@ export function createBattle(setup: BattleSetup): BattleState {
 
 // ---------- helpers ----------
 
-function fx(s: BattleState, kind: 'dmg' | 'heal' | 'bubble' | 'text', unitId: string, text: string) {
-  s.fx.push({ id: ++s.fxSeq, kind, unitId, text });
+function pushFx(s: BattleState, f: Omit<BattleFx, 'id'>) {
+  s.fx.push({ id: ++s.fxSeq, ...f });
   if (s.fx.length > 40) s.fx.splice(0, s.fx.length - 40);
+}
+
+function fx(s: BattleState, kind: 'dmg' | 'heal' | 'bubble' | 'text', unitId: string, text: string) {
+  pushFx(s, { kind, unitId, text });
+}
+
+function moveFx(s: BattleState, u: Unit, path: [number, number][]) {
+  if (path.length < 2) return;
+  pushFx(s, { kind: 'move', unitId: u.id, text: '', path: path.map(([x, y]) => [x, y]) });
+}
+
+/** Sets a unit's tile outside of pathed movement (dash, knockback, swap) and records the slide. */
+function relocate(s: BattleState, u: Unit, x: number, y: number) {
+  if (u.x === x && u.y === y) return;
+  moveFx(s, u, [
+    [u.x, u.y],
+    [x, y],
+  ]);
+  u.x = x;
+  u.y = y;
 }
 
 function log(s: BattleState, line: string) {
@@ -291,10 +311,11 @@ export function isPlayerTurn(s: BattleState): boolean {
 
 // ---------- movement ----------
 
-function moveAlong(u: Unit, path: [number, number][]) {
+function moveAlong(s: BattleState, u: Unit, path: [number, number][]) {
   if (path.length < 2) return;
   const [lx, ly] = path[path.length - 2];
   const [tx, ty] = path[path.length - 1];
+  moveFx(s, u, path);
   u.facing = dirTo(lx, ly, tx, ty);
   u.x = tx;
   u.y = ty;
@@ -311,7 +332,7 @@ export function playerMove(s: BattleState, x: number, y: number): boolean {
   if (!u || s.turn.moved || s.turn.acted) return false;
   const path = playerMoveTargets(s).get(key(x, y));
   if (!path) return false;
-  moveAlong(u, path);
+  moveAlong(s, u, path);
   s.turn.moved = true;
   return true;
 }
@@ -320,8 +341,7 @@ export function playerUndoMove(s: BattleState): boolean {
   const u = getUnit(s, s.activeId);
   if (!u || !s.turn.moved || s.turn.acted) return false;
   if (unitAt(s, s.turn.startX, s.turn.startY)) return false;
-  u.x = s.turn.startX;
-  u.y = s.turn.startY;
+  relocate(s, u, s.turn.startX, s.turn.startY);
   s.turn.moved = false;
   return true;
 }
@@ -414,10 +434,8 @@ function tryIntercept(s: BattleState, attacker: Unit, target: Unit): Unit {
       if (rng.chance(p)) {
         const px = target.x;
         const py = target.y;
-        target.x = u.x;
-        target.y = u.y;
-        u.x = px;
-        u.y = py;
+        relocate(s, target, u.x, u.y);
+        relocate(s, u, px, py);
         u.interceptReady = false;
         s.tally[u.id].intercepts += 1;
         fx(s, 'bubble', u.id, rng.pick(INTERCEPT_BARKS));
@@ -495,8 +513,7 @@ function strike(s: BattleState, a: Unit, t0: Unit, sk: SkillDef, opts: StrikeOpt
   if (kb) {
     const push = simulatePush(s, a.x, a.y, t, kb, a.id);
     const moved = push.x !== t.x || push.y !== t.y;
-    t.x = push.x;
-    t.y = push.y;
+    relocate(s, t, push.x, push.y);
     if (moved) log(s, `${t.name} 被击退`);
     if (push.collide) {
       const pct = a.passives.includes('job.impactForce') ? 0.15 : 0.1;
@@ -512,10 +529,12 @@ function strike(s: BattleState, a: Unit, t0: Unit, sk: SkillDef, opts: StrikeOpt
   if (sk.pull && !t.downed) {
     const d = dirTo(t.x, t.y, a.x, a.y);
     const [dx, dy] = DIRS[d];
-    while (manhattan(t.x, t.y, a.x, a.y) > 1 && walkable(s, t.x + dx, t.y + dy, t.id)) {
-      t.x += dx;
-      t.y += dy;
+    let [nx, ny] = [t.x, t.y];
+    while (manhattan(nx, ny, a.x, a.y) > 1 && walkable(s, nx + dx, ny + dy, t.id)) {
+      nx += dx;
+      ny += dy;
     }
+    relocate(s, t, nx, ny);
     log(s, `${t.name} 被拽到身前`);
   }
 
@@ -648,8 +667,7 @@ function useSkill(s: BattleState, u: Unit, skillId: string, tgt: PlayerTarget): 
       if (!t || !canTarget(s, u, u.x, u.y, t, sk)) return false;
       const d = dirTo(u.x, u.y, t.x, t.y);
       const [dx, dy] = DIRS[d];
-      u.x = t.x - dx;
-      u.y = t.y - dy;
+      relocate(s, u, t.x - dx, t.y - dy);
       u.facing = d;
       log(s, `${u.name} 突进！`);
       strike(s, u, t, sk);
@@ -784,7 +802,7 @@ function aiStandardTurn(s: BattleState, u: Unit) {
   const tally = s.tally[u.id];
   tally.intents[intent] = (tally.intents[intent] ?? 0) + 1;
 
-  moveAlong(u, c.path);
+  moveAlong(s, u, c.path);
   if (c.path.length > 1) s.turn.moved = true;
   if (intent === 'retreat') s.retreatWatch[u.id] = true;
   bark(s, u, intent);
@@ -840,7 +858,7 @@ function bossTurn(s: BattleState, u: Unit) {
         if (manhattan(x, y, target.x, target.y) === 1 && (!best || path.length < best.length)) best = path;
       }
       if (best) {
-        moveAlong(u, best);
+        moveAlong(s, u, best);
         fx(s, 'bubble', u.id, '处刑！');
         log(s, `${u.name} 执行【处刑宣告】`);
         strike(s, u, target, SKILLS.basic, { multOverride: 2.5, fromBoss: true });

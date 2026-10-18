@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { PERSONALITY_NAMES } from '../../config/alleles';
 import { STANCE_NAMES } from '../../config/balance';
 import { ENEMIES } from '../../config/enemies';
@@ -35,30 +35,60 @@ function shortName(u: Unit): string {
   return u.name.replace('族长·', '').slice(0, 3);
 }
 
+/** Tile width plus grid gap, in px; must match `.tile` and `.board` in styles.css. */
+const CELL = 76;
+const STEP_MS = 130;
+const FLOAT_MS = 2300;
+
+const TRAIL_COLOR = { patriarch: '#5aa0ff', ally: '#3fc060', enemy: '#e04848' };
+
 interface Floating extends BattleFx {
   born: number;
   /** fx ids restart every floor, so floats need their own key */
   uid: number;
+  /** waits for earlier moves in the same batch, so hits land after the attacker arrives */
+  delay: number;
+  dur: number;
 }
 
 let floatSeq = 0;
 
-/** Keeps freshly emitted fx around long enough for their CSS animation. */
-function useFloatingFx(s: BattleState | null): Floating[] {
+function pathSteps(path: [number, number][]): number {
+  let n = 0;
+  for (let i = 1; i < path.length; i++) n += Math.abs(path[i][0] - path[i - 1][0]) + Math.abs(path[i][1] - path[i - 1][1]);
+  return n;
+}
+
+const floatAlive = (p: Floating, now: number) => now - p.born < p.delay + p.dur + FLOAT_MS;
+
+/**
+ * Keeps freshly emitted fx around long enough for their animation. Moves in one batch play in sequence.
+ * Runs as a layout effect so a moved token never paints at its destination before its slide starts.
+ */
+function useFloatingFx(s: BattleState | null): { items: Floating[]; busyUntil: MutableRefObject<number> } {
   const [items, setItems] = useState<Floating[]>([]);
   const seen = useRef(s?.fxSeq ?? 0);
-  useEffect(() => {
+  const busyUntil = useRef(0);
+  useLayoutEffect(() => {
     if (!s) return;
     if (s.fxSeq < seen.current) seen.current = 0;
     const fresh = s.fx.filter((f) => f.id > seen.current);
     seen.current = s.fxSeq;
     if (fresh.length === 0) return;
     const now = Date.now();
-    setItems((prev) => [...prev.filter((p) => now - p.born < 2300), ...fresh.map((f) => ({ ...f, born: now, uid: ++floatSeq }))]);
-    const t = setTimeout(() => setItems((prev) => prev.filter((p) => Date.now() - p.born < 2300)), 2400);
-    return () => clearTimeout(t);
+    let t = 0;
+    const added = fresh.map((f): Floating => {
+      const delay = t;
+      const dur = f.kind === 'move' && f.path ? pathSteps(f.path) * STEP_MS : 0;
+      t += dur;
+      return { ...f, born: now, uid: ++floatSeq, delay, dur };
+    });
+    busyUntil.current = now + t;
+    setItems((prev) => [...prev.filter((p) => floatAlive(p, now)), ...added]);
+    const timer = setTimeout(() => setItems((prev) => prev.filter((p) => floatAlive(p, Date.now()))), t + FLOAT_MS + 100);
+    return () => clearTimeout(timer);
   }, [s, s?.fxSeq]);
-  return items;
+  return { items, busyUntil };
 }
 
 export function BattleView() {
@@ -67,7 +97,7 @@ export function BattleView() {
   const [mode, setMode] = useState<Mode>({ kind: 'move' });
   const [selected, setSelected] = useState<string | null>(null);
   const [hoverDir, setHoverDir] = useState<number | null>(null);
-  const floats = useFloatingFx(b);
+  const { items: floats, busyUntil } = useFloatingFx(b);
   const logRef = useRef<HTMLDivElement>(null);
 
   const playerTurn = !!b && isPlayerTurn(b) && run?.phase === 'battle';
@@ -75,9 +105,10 @@ export function BattleView() {
 
   useEffect(() => {
     if (!b || b.result || run?.phase !== 'battle' || playerTurn || debug.stepMode) return;
-    const t = setTimeout(() => battle((s) => runAiTurn(s)), aiDelay);
+    const wait = aiDelay + Math.max(0, busyUntil.current - Date.now());
+    const t = setTimeout(() => battle((s) => runAiTurn(s)), wait);
     return () => clearTimeout(t);
-  }, [b, run?.phase, playerTurn, debug.stepMode, aiDelay, battle]);
+  }, [b, run?.phase, playerTurn, debug.stepMode, aiDelay, battle, busyUntil]);
 
   useEffect(() => {
     setMode({ kind: 'move' });
@@ -215,24 +246,30 @@ export function BattleView() {
                       {h.toFixed(2)}
                     </div>
                   )}
-                  {u && <UnitToken u={u} active={u.id === b.activeId} marked={markTargets.has(u.id)} />}
+                  {u && (
+                    <UnitToken
+                      u={u}
+                      active={u.id === b.activeId}
+                      marked={markTargets.has(u.id)}
+                      move={floats.filter((f) => f.kind === 'move' && f.unitId === u.id).pop()}
+                    />
+                  )}
                   {u &&
                     floats
-                      .filter((f) => f.unitId === u.id)
-                      .map((f) =>
-                        f.kind === 'bubble' ? (
-                          <div key={f.uid} className="bubble">
-                            {f.text}
-                          </div>
-                        ) : (
-                          <div key={f.uid} className={`dmgnum ${f.kind}`}>
-                            {f.text}
-                          </div>
-                        ),
-                      )}
+                      .filter((f) => f.unitId === u.id && f.kind !== 'move')
+                      .map((f) => (
+                        <div
+                          key={f.uid}
+                          className={f.kind === 'bubble' ? 'bubble' : `dmgnum ${f.kind}`}
+                          style={f.delay ? { animationDelay: `${f.delay}ms`, animationFillMode: 'both' } : undefined}
+                        >
+                          {f.text}
+                        </div>
+                      ))}
                 </div>
               );
             })}
+            <MoveTrails floats={floats} units={b.units} />
           </div>
           {(run.phase !== 'battle' || b.result) && <RunOverlay />}
         </div>
@@ -311,10 +348,77 @@ export function BattleView() {
   );
 }
 
-function UnitToken({ u, active, marked }: { u: Unit; active: boolean; marked: boolean }) {
-  const cls = u.kind === 'patriarch' ? 'patriarch' : u.side === 'ally' ? 'ally' : u.isBoss ? 'enemy boss' : 'enemy';
+function trailColor(u: Unit | undefined): string {
+  if (!u) return TRAIL_COLOR.enemy;
+  return u.kind === 'patriarch' ? TRAIL_COLOR.patriarch : u.side === 'ally' ? TRAIL_COLOR.ally : TRAIL_COLOR.enemy;
+}
+
+/** Fading path lines drawn over the board while units slide along them. */
+function MoveTrails({ floats, units }: { floats: Floating[]; units: Unit[] }) {
+  const moves = floats.filter((f) => f.kind === 'move' && f.path);
+  if (moves.length === 0) return null;
+  const center = (v: number) => 2 + v * CELL + (CELL - 2) / 2;
   return (
-    <div className={`unit ${cls} ${active ? 'active' : ''} ${u.breached ? 'breached' : ''}`}>
+    <svg className="move-trails">
+      {moves.map((f) => {
+        const path = f.path!;
+        const len = pathSteps(path) * CELL;
+        const color = trailColor(units.find((u) => u.id === f.unitId));
+        const [sx, sy] = path[0];
+        const fade = `trail-fade 600ms ease-in ${f.delay + f.dur + 900}ms forwards`;
+        return (
+          <g key={f.uid} stroke={color} fill={color}>
+            <circle cx={center(sx)} cy={center(sy)} r={5} stroke="none" style={{ animation: fade }} />
+            <polyline
+              points={path.map(([x, y]) => `${center(x)},${center(y)}`).join(' ')}
+              fill="none"
+              strokeWidth={4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={len}
+              style={{
+                strokeDashoffset: len,
+                animation: `trail-draw ${f.dur}ms linear ${f.delay}ms forwards, ${fade}`,
+              }}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function UnitToken({ u, active, marked, move }: { u: Unit; active: boolean; marked: boolean; move?: Floating }) {
+  const cls = u.kind === 'patriarch' ? 'patriarch' : u.side === 'ally' ? 'ally' : u.isBoss ? 'enemy boss' : 'enemy';
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const path = move?.path;
+    if (!el || !move || !path || move.dur <= 0) return;
+    const remaining = move.born + move.delay + move.dur - Date.now();
+    if (remaining <= 0) return;
+    const [ex, ey] = path[path.length - 1];
+    const total = pathSteps(path);
+    let walked = 0;
+    const frames = path.map(([x, y], i) => {
+      if (i > 0) walked += Math.abs(x - path[i - 1][0]) + Math.abs(y - path[i - 1][1]);
+      return { transform: `translate(${(x - ex) * CELL}px, ${(y - ey) * CELL}px)`, offset: walked / total };
+    });
+    el.style.zIndex = '4';
+    const anim = el.animate(frames, {
+      duration: move.dur,
+      delay: move.born + move.delay - Date.now(),
+      fill: 'backwards',
+      easing: 'ease-in-out',
+    });
+    anim.onfinish = () => (el.style.zIndex = '');
+    return () => {
+      anim.cancel();
+      el.style.zIndex = '';
+    };
+  }, [move?.uid]);
+  return (
+    <div ref={ref} className={`unit ${cls} ${active ? 'active' : ''} ${u.breached ? 'breached' : ''}`}>
       <span className="facing" style={{ top: 2, left: 4 }}>
         {FACING[u.facing]}
       </span>

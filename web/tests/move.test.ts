@@ -28,6 +28,15 @@ describe('movement through allies', () => {
     expect(playerMove(s, 1, 1)).toBe(true);
     expect(pat).toMatchObject({ x: 1, y: 1 });
     expect(ally).toMatchObject({ x: 1, y: 2 });
+    expect(s.fx.at(-1)).toMatchObject({
+      kind: 'move',
+      unitId: 'pat',
+      path: [
+        [1, 3],
+        [1, 2],
+        [1, 1],
+      ],
+    });
   });
 
   it('still cannot pass an enemy or an obstacle', () => {

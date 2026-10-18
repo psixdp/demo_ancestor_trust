@@ -250,9 +250,11 @@ export interface Unit {
 
 export interface BattleFx {
   id: number;
-  kind: 'dmg' | 'heal' | 'bubble' | 'text';
+  kind: 'dmg' | 'heal' | 'bubble' | 'text' | 'move';
   unitId: string;
   text: string;
+  /** move only: tiles from the start position to the landing tile */
+  path?: [number, number][];
 }
 
 export interface FactorBreakdown {

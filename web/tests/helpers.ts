@@ -55,6 +55,8 @@ export function board(w: number, h: number, units: Unit[], obstacles: [number, n
     units,
     activeId: units[0]?.id ?? null,
     turn: { moved: false, acted: false, startX: units[0]?.x ?? 0, startY: units[0]?.y ?? 0 },
+    fx: [],
+    fxSeq: 0,
     intelTypes: [],
   } as unknown as BattleState;
 }
