@@ -40,18 +40,47 @@ await nav('地下城出征');
 await page.locator('.grid3 .card', { hasText: '艾德里安' }).click();
 await page.locator('.grid3 .card', { hasText: '薇拉' }).click();
 await page.click('text=出征 ▶');
-await page.waitForSelector('.board');
-await shot('06-battle-start');
+await page.waitForSelector('.dungeon');
+await shot('06-explore-start');
 
+const ROOM_PRIORITY = ['stairs', 'boss', 'guard', 'rest', 'empty', 'entry', 'side'];
 let shotMid = false;
-for (let step = 0; step < 400; step++) {
-  const phase = await page.evaluate(() => window.__game.getState().run?.phase ?? 'none');
-  if (phase === 'between') {
-    await shot(`07-between-${step}`);
-    await page.locator('.overlay button', { hasText: '继续' }).click();
+let shotBattle = false;
+for (let step = 0; step < 600; step++) {
+  const st = await page.evaluate(() => {
+    const r = window.__game.getState().run;
+    return { phase: r?.phase ?? 'none', battle: !!r?.battle, won: r?.battle?.result === 'victory' };
+  });
+  if (st.phase === 'explore' && st.won) {
+    await page.locator('.overlay button', { hasText: '返回地图' }).click();
     continue;
   }
-  if (phase === 'done' || phase === 'none') break;
+  if (st.phase === 'explore') {
+    const stairs = page.locator('button', { hasText: '下楼' });
+    if (await stairs.isVisible().catch(() => false)) {
+      await shot(`07-stairs-${step}`);
+      await stairs.click();
+      continue;
+    }
+    const rooms = page.locator('.room.reachable');
+    const n = await rooms.count();
+    let best = null;
+    let bestRank = 99;
+    for (let i = 0; i < n; i++) {
+      const kind = await rooms.nth(i).getAttribute('data-kind');
+      const visited = (await rooms.nth(i).getAttribute('data-visited')) === 'true';
+      const rank = ROOM_PRIORITY.indexOf(kind) + (visited ? 10 : 0);
+      if (rank < bestRank) [best, bestRank] = [rooms.nth(i), rank];
+    }
+    await best.click();
+    continue;
+  }
+  if (st.phase === 'done' || st.phase === 'none') break;
+  if (!shotBattle) {
+    shotBattle = true;
+    await page.waitForSelector('.board');
+    await shot('06-battle-start');
+  }
   const bar = page.locator('.actionbar');
   if (!(await bar.isVisible().catch(() => false))) {
     await page.waitForTimeout(60);

@@ -25,6 +25,8 @@ const list: MemoryDef[] = [
   { id: 'orderFocus', name: '号令·集火', kind: 'active', category: 'combat', source: 'xp', cost: 60, skill: 'orderFocus', desc: '子嗣下次行动对该目标的攻击/破势 x2.0' },
   { id: 'orderHold', name: '号令·死守', kind: 'active', category: 'combat', source: 'xp', cost: 60, skill: 'orderHold', desc: '子嗣下次受伤 −30%，护驾 x1.5' },
   { id: 'bloodLunge', name: '血影闪现', kind: 'passive', category: 'combat', source: 'xp', cost: 0, desc: '处决可对 4 格内的破绽目标发动：闪现到其身旁再处决' },
+  { id: 'nightAmbush', name: '夜行先机', kind: 'passive', category: 'combat', source: 'xp', cost: 40, desc: '进入敌群尚未察觉的房间时我方先动（敌人初始行动推迟一个行动间隔）' },
+  { id: 'bloodPact', name: '血契唤醒', kind: 'passive', category: 'combat', source: 'xp', cost: 60, desc: '战斗胜利后，倒地子嗣以 30% 生命归队（倒地创伤照旧结算）' },
   { id: 'execMastery', name: '处决精通', kind: 'passive', category: 'combat', source: 'xp', cost: 80, desc: '处决伤害 +30%' },
   { id: 'bloodBody', name: '血族体质', kind: 'passive', category: 'combat', source: 'xp', cost: 80, desc: '每次行动开始回复 3% 最大生命' },
   // patriarch desperation

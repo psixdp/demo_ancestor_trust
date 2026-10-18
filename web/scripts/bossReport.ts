@@ -3,9 +3,9 @@
 import { ENCOUNTERS, ENEMIES } from '../src/config/enemies';
 import { createBattle, runAiTurn } from '../src/core/battle/engine';
 import { changeClass } from '../src/core/meta/actions';
-import { continueRun, finishBattle, startRun } from '../src/core/meta/expedition';
-import { createNewGame } from '../src/core/meta/newGame';
 import { BAL } from '../src/config/balance';
+import { autoRun, startRun } from '../src/core/meta/expedition';
+import { createNewGame } from '../src/core/meta/newGame';
 import { unitFromCharacter } from '../src/core/meta/units';
 import type { GameState } from '../src/core/types';
 
@@ -108,37 +108,39 @@ ENEMIES.boss.hp = 300;
 report('变体：首领 HP 400 → 300 满血');
 ENEMIES.boss.hp = origHp;
 
-/** Clear rate of a full expedition (floors 1-4) for the opening team. */
-function fullClear(name: string) {
+/** Full expedition (floors 1-4) for the opening team, explored by the auto policy. */
+function fullClear(name: string, bags = 0, pact = false) {
   let clears = 0;
   let reach4 = 0;
+  let standing4 = 0;
   for (let seed = 1; seed <= seeds; seed++) {
     const g = createNewGame(seed);
-    const r = startRun(g, ['c2', 'c3'], 1);
+    if (pact) {
+      g.soul.pool.push('bloodPact');
+      g.soul.equipped = ['sweep', 'bloodLunge', 'bloodPact'];
+    }
+    const r = startRun(g, ['c2', 'c3'], 1, bags);
     if (!r.ok) throw new Error(r.msg);
     const run = r.run;
-    for (;;) {
-      if (run.floor === 4) reach4++;
-      const b = run.battle!;
-      let guard = 0;
-      while (!b.result && guard++ < 4000) runAiTurn(b, { autoPatriarch: true });
-      finishBattle(g, run);
-      if (run.phase === 'done') break;
-      continueRun(g, run);
-    }
-    if (run.floorsCleared === 4) clears++;
+    autoRun(g, run, (rs) => {
+      if (rs.floor !== 4) return;
+      reach4++;
+      standing4 += rs.team.filter((id) => !rs.downed.includes(id)).length;
+    });
+    if (run.outcome === 'clear') clears++;
   }
-  console.log(`  ${name.padEnd(30)} 到达首领层 ${Math.round((reach4 / seeds) * 100)}%，通关 ${Math.round((clears / seeds) * 100)}%`);
+  console.log(
+    `  ${name.padEnd(30)} 到达首领层 ${Math.round((reach4 / seeds) * 100)}%（平均 ${(standing4 / Math.max(1, reach4)).toFixed(2)} 人），通关 ${Math.round((clears / seeds) * 100)}%`,
+  );
 }
 
-console.log('\n完整出征（开局阵容，第 1 层打到第 4 层）');
+console.log('\n完整出征（开局阵容，房间制探索，第 1 层打到首领）');
 fullClear('现状');
-BAL.floorHeal = 0.4;
-fullClear('层间回复 20% → 40%');
-BAL.floorHeal = 0.2;
-ENCOUNTERS[4] = [[['boss', 1, 1], ['apprentice', 1, 1]]];
-fullClear('首领层去掉重盾兵');
-BAL.floorHeal = 0.4;
-fullClear('去掉重盾兵 + 层间回复 40%');
-BAL.floorHeal = 0.2;
-ENCOUNTERS[4] = orig;
+fullClear('3 血袋', 3);
+fullClear('血契唤醒（替换穿刺突进）', 0, true);
+fullClear('血契唤醒 + 3 血袋', 3, true);
+const origPatrol = BAL.patrolEvery;
+BAL.patrolEvery = 999;
+fullClear('巡逻队原地不动');
+fullClear('巡逻队原地不动 + 血契唤醒', 0, true);
+BAL.patrolEvery = origPatrol;

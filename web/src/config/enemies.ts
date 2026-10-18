@@ -24,8 +24,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
   boss: { id: 'boss', name: '审判官·格雷', short: '审', aiType: 'boss', hp: 400, atk: 28, def: 14, arm: 100, spd: 105, mov: 3, eva: 0, skills: ['basic'], isBoss: true },
 };
 
-/** Each floor lists possible enemy groups; numbers in a tuple are [min, max] counts. */
-export const ENCOUNTERS: Record<number, [string, number, number][][]> = {
+/** One possible enemy group; numbers in a tuple are [min, max] counts. */
+export type EnemyGroup = [string, number, number][];
+
+/** Guard (or boss) room of each floor. */
+export const ENCOUNTERS: Record<number, EnemyGroup[]> = {
   1: [[['rat', 2, 2], ['apprentice', 1, 2]]],
   2: [
     [['apprentice', 2, 2], ['gunner', 1, 1], ['rat', 1, 2]],
@@ -35,6 +38,31 @@ export const ENCOUNTERS: Record<number, [string, number, number][][]> = {
   4: [[['boss', 1, 1], ['apprentice', 1, 1], ['shield', 1, 1]]],
 };
 
+/** Optional side rooms guarding a chest. */
+export const SIDE_ENCOUNTERS: Record<number, EnemyGroup[]> = {
+  1: [[['rat', 2, 2]], [['rat', 1, 1], ['apprentice', 1, 1]]],
+  2: [[['apprentice', 1, 1], ['gunner', 1, 1]], [['rat', 2, 3]]],
+  3: [[['gunner', 1, 1], ['apprentice', 1, 1], ['rat', 1, 1]], [['shield', 1, 1], ['gunner', 1, 1]]],
+  4: [[['apprentice', 1, 1], ['gunner', 1, 1]]],
+};
+
+/** Wandering group of each floor; running into it means the enemy moves first. */
+export const PATROLS: Record<number, EnemyGroup[]> = {
+  1: [[['rat', 2, 2]]],
+  2: [[['rat', 1, 1], ['apprentice', 1, 1]]],
+  3: [[['apprentice', 1, 1], ['gunner', 1, 1]]],
+  4: [[['apprentice', 2, 2]]],
+};
+
+/** Opened after clearing a side room. */
+export const CHEST_LOOT: Record<number, { gold: [number, number]; mutagenChance: number; mutagen: number }> = {
+  1: { gold: [60, 90], mutagenChance: 0.2, mutagen: 1 },
+  2: { gold: [80, 120], mutagenChance: 0.4, mutagen: 1 },
+  3: { gold: [100, 150], mutagenChance: 0.6, mutagen: 1 },
+  4: { gold: [150, 200], mutagenChance: 0.8, mutagen: 1 },
+};
+
+/** Guard room reward of each floor. */
 export const LOOT: Record<number, { gold: [number, number]; mutagenChance: number; mutagen: number }> = {
   1: { gold: [80, 120], mutagenChance: 0, mutagen: 0 },
   2: { gold: [100, 150], mutagenChance: 0.5, mutagen: 1 },

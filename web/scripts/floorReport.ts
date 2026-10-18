@@ -3,7 +3,8 @@
 import { ENCOUNTERS } from '../src/config/enemies';
 import { createBattle, runAiTurn } from '../src/core/battle/engine';
 import { changeClass } from '../src/core/meta/actions';
-import { continueRun, finishBattle, startRun } from '../src/core/meta/expedition';
+import { deriveStats } from '../src/core/character';
+import { autoRun, startRun } from '../src/core/meta/expedition';
 import { createNewGame } from '../src/core/meta/newGame';
 import { unitFromCharacter } from '../src/core/meta/units';
 import type { GameState } from '../src/core/types';
@@ -67,8 +68,11 @@ run('开局阵容 满血 不带闪现', noLunge);
 run('全高阶 满血', advanced);
 run('全高阶 70% 血', advanced, 0.7);
 
+const maxHp = (g: GameState, id: string) => deriveStats(g.members.find((m) => m.id === id)!, g.soul).hp;
+
 /** Full expedition from floor 1: how teams arrive at each floor and where they fall. */
-function fullRuns(name: string, setup: Setup) {
+function fullRuns(name: string, setup: Setup, bags = 0) {
+  let clears = 0;
   const reached: Record<number, number> = {};
   const lost: Record<number, number> = {};
   const hpIn: Record<number, number> = {};
@@ -76,25 +80,20 @@ function fullRuns(name: string, setup: Setup) {
   for (let seed = 1; seed <= seeds; seed++) {
     const g = createNewGame(seed);
     setup(g);
-    const r = startRun(g, ['c2', 'c3'], 1);
+    const r = startRun(g, ['c2', 'c3'], 1, bags);
     if (!r.ok) throw new Error(r.msg);
     const runState = r.run;
-    for (;;) {
-      const b = runState.battle!;
-      const f = runState.floor;
+    autoRun(g, runState, (rs) => {
+      const f = rs.floor;
+      const standing = rs.team.filter((id) => !rs.downed.includes(id));
       reached[f] = (reached[f] ?? 0) + 1;
-      const allies = b.units.filter((u) => u.side === 'ally');
-      hpIn[f] = (hpIn[f] ?? 0) + allies.reduce((s, u) => s + u.hp / u.maxHp, 0) / allies.length;
-      aliveIn[f] = (aliveIn[f] ?? 0) + allies.length;
-      let guard = 0;
-      while (!b.result && guard++ < 3000) runAiTurn(b, { autoPatriarch: true });
-      if (b.result !== 'victory') lost[f] = (lost[f] ?? 0) + 1;
-      finishBattle(g, runState);
-      if (runState.phase === 'done') break;
-      continueRun(g, runState);
-    }
+      hpIn[f] = (hpIn[f] ?? 0) + standing.reduce((s, id) => s + rs.hp[id] / maxHp(g, id), 0) / standing.length;
+      aliveIn[f] = (aliveIn[f] ?? 0) + standing.length;
+    });
+    if (runState.outcome === 'defeat') lost[runState.floor] = (lost[runState.floor] ?? 0) + 1;
+    if (runState.outcome === 'clear') clears++;
   }
-  console.log(`\n完整出征：${name}`);
+  console.log(`\n完整出征：${name}（通关 ${Math.round((clears / seeds) * 100)}%）`);
   for (const f of [1, 2, 3, 4]) {
     const n = reached[f] ?? 0;
     if (!n) continue;
@@ -104,7 +103,15 @@ function fullRuns(name: string, setup: Setup) {
   }
 }
 
+const withPact: Setup = (g) => {
+  g.soul.pool.push('bloodPact');
+  g.soul.equipped = ['sweep', 'bloodLunge', 'bloodPact'];
+};
+
 fullRuns('开局阵容', opening);
+fullRuns('开局阵容 + 3 血袋', opening, 3);
+fullRuns('开局阵容 + 血契唤醒（替换穿刺突进）', withPact);
+fullRuns('开局阵容 + 血契唤醒 + 3 血袋', withPact, 3);
 fullRuns('全高阶', advanced);
 
 const original = ENCOUNTERS[floor];

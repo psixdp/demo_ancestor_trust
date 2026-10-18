@@ -51,9 +51,15 @@ interface Store {
   nextMonth(): void;
   possess(containerId: string, equipped: string[]): void;
 
-  startRun(childIds: string[], difficulty: 1 | 2): void;
+  startRun(childIds: string[], difficulty: 1 | 2, bloodBags?: number): void;
   battle(fn: (b: BattleState) => unknown): void;
-  continueRun(): void;
+  /** Exploration actions on a cloned run and game. */
+  explore(fn: (g: GameState, run: RunState) => unknown): void;
+  moveTo(roomId: number): void;
+  useRest(): void;
+  useBloodBag(charId: string): void;
+  takeStairs(): void;
+  leaveBattle(): void;
   retreatRun(): void;
   settleRun(): void;
 }
@@ -165,11 +171,11 @@ export const useGame = create<Store>((set, get) => ({
     set({ game: g, tab: 'family', report: { title: `第 ${month} 月 · 继任仪式`, lines: g.reports[0]?.lines ?? [] } });
   },
 
-  startRun(childIds, difficulty) {
+  startRun(childIds, difficulty, bloodBags = 0) {
     const cur = get().game;
     if (!cur) return;
     const g = structuredClone(cur);
-    const res = X.startRun(g, childIds, difficulty);
+    const res = X.startRun(g, childIds, difficulty, bloodBags);
     if (!res.ok) {
       get().toast(res.msg, false);
       return;
@@ -189,20 +195,31 @@ export const useGame = create<Store>((set, get) => ({
       set({ run });
     }
   },
-  continueRun() {
+  explore(fn) {
     const { run: curRun, game: curGame } = get();
     if (!curRun || !curGame) return;
     const run = structuredClone(curRun);
     const g = structuredClone(curGame);
-    X.continueRun(g, run);
+    fn(g, run);
     set({ run, game: g });
   },
+  moveTo(roomId) {
+    get().explore((g, run) => X.moveTo(g, run, roomId));
+  },
+  useRest() {
+    get().explore((g, run) => X.useRest(g, run));
+  },
+  useBloodBag(charId) {
+    get().explore((g, run) => X.useBloodBag(g, run, charId));
+  },
+  takeStairs() {
+    get().explore((g, run) => X.takeStairs(g, run));
+  },
+  leaveBattle() {
+    get().explore((_, run) => X.leaveBattle(run));
+  },
   retreatRun() {
-    const curRun = get().run;
-    if (!curRun) return;
-    const run = structuredClone(curRun);
-    X.retreatRun(run);
-    set({ run });
+    get().explore((_, run) => X.retreatRun(run));
   },
   settleRun() {
     const { run, game: curGame } = get();

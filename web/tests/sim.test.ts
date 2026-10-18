@@ -1,5 +1,4 @@
-import { runAiTurn } from '../src/core/battle/engine';
-import { continueRun, finishBattle, settleRun, startRun, type RunState } from '../src/core/meta/expedition';
+import { autoRun, settleRun, startRun, type RunState } from '../src/core/meta/expedition';
 import { children, patriarch } from '../src/core/meta/growth';
 import { advanceMonth } from '../src/core/meta/month';
 import { createNewGame } from '../src/core/meta/newGame';
@@ -8,24 +7,13 @@ import { CLASS_LIST } from '../src/config/classes';
 import { isAdult } from '../src/core/character';
 import type { GameState } from '../src/core/types';
 
-function playBattle(run: RunState) {
-  const b = run.battle!;
-  let guard = 0;
-  while (!b.result && guard++ < 2000) runAiTurn(b, { autoPatriarch: true });
-  expect(b.result).not.toBeNull();
-}
-
 function playRun(g: GameState): RunState {
   const team = children(g).filter(isAdult).slice(0, 2).map((c) => c.id);
   const r = startRun(g, team, 1);
   if (!r.ok) throw new Error(r.msg);
   const run = r.run;
-  for (;;) {
-    playBattle(run);
-    finishBattle(g, run);
-    if (run.phase === 'done') break;
-    continueRun(g, run);
-  }
+  autoRun(g, run);
+  expect(run.phase).toBe('done');
   settleRun(g, run);
   return run;
 }

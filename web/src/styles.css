@@ -735,3 +735,73 @@ input.tuned {
 .unit-info {
   font-size: 12px;
 }
+
+/* dungeon map: rooms on even grid cells, doors between them */
+.dungeon {
+  display: grid;
+  grid-template-columns: 160px 28px 160px 28px 160px;
+  grid-template-rows: 130px 28px 130px 28px 130px;
+  padding: 12px;
+  min-height: 470px;
+}
+.room {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  overflow: hidden;
+}
+.room.void {
+  background: transparent;
+  border-color: transparent;
+}
+.room.unvisited {
+  opacity: 0.65;
+  border-style: dashed;
+}
+.room.hostile {
+  border-color: var(--enemy);
+}
+.room.kind-rest {
+  border-color: #b3263b88;
+}
+.room.kind-stairs,
+.room.kind-boss {
+  border-color: var(--gold);
+}
+.room.here {
+  box-shadow: 0 0 0 2px var(--ally);
+  opacity: 1;
+}
+.room.reachable {
+  cursor: pointer;
+}
+.room.reachable:hover {
+  background: #2d2230;
+  box-shadow: 0 0 0 2px var(--gold);
+}
+.room-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.room-name {
+  font-weight: 600;
+}
+.room-team {
+  margin-top: auto;
+  color: #8fc0ff;
+}
+.door.open.h {
+  align-self: center;
+  height: 10px;
+  background: var(--line);
+}
+.door.open.v {
+  justify-self: center;
+  width: 10px;
+  background: var(--line);
+}

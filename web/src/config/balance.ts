@@ -50,7 +50,17 @@ export const BAL = {
   /** share of each ally's action interval pulled forward after an execution */
   executionHaste: 0.25,
 
+  /** heal on taking the stairs down */
   floorHeal: 0.2,
+  /** one-time heal at a rest point, for every standing member */
+  restHeal: 0.35,
+  bloodBagHeal: 0.4,
+  bloodBagPrice: 30,
+  bloodBagMax: 3,
+  /** HP share a downed child returns with under 血契唤醒 */
+  reviveHp: 0.3,
+  /** exploration steps between patrol moves */
+  patrolEvery: 2,
   defeatLootLoss: 0.5,
   maxTraumas: 3,
   childTraitCap: 4,

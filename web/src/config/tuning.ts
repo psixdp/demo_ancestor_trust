@@ -146,11 +146,24 @@ export const TUNING_GROUPS: TuningGroup[] = [
     ],
   },
   {
+    id: 'dungeon',
+    name: '地下城探索',
+    kind: 'list',
+    fields: [
+      f('floorHeal', '下楼回复（最大生命）', 5, { pct: true, max: 1 }),
+      f('restHeal', '休整点回复（最大生命）', 5, { pct: true, max: 1 }),
+      f('bloodBagHeal', '血袋回复（最大生命）', 5, { pct: true, max: 1 }),
+      f('bloodBagPrice', '血袋单价', 5),
+      f('bloodBagMax', '每次出征血袋上限', 1),
+      f('reviveHp', '血契唤醒归队血量', 5, { pct: true, max: 1 }),
+      f('patrolEvery', '巡逻队每几步移动一次', 1, { min: 1 }),
+    ],
+  },
+  {
     id: 'expedition',
     name: '出征结算',
     kind: 'list',
     fields: [
-      f('floorHeal', '层间回复（最大生命）', 5, { pct: true, max: 1 }),
       f('defeatLootLoss', '战败战利品损失', 5, { pct: true, max: 1 }),
       f('maxTraumas', '创伤上限', 1, { min: 1 }),
       f('childTraitCap', '子嗣后天特性位', 1, { min: 1 }),

@@ -40,6 +40,12 @@ export interface BattleSetup {
   seed: number;
   stance: Stance;
   intelTypes: string[];
+  /** fixed enemy group; rolled from ENCOUNTERS[floor] when omitted */
+  enemyTypes?: string[];
+  /** index into LAYOUTS; random when omitted */
+  layout?: number;
+  /** side that opens the fight a full action interval ahead */
+  initiative?: 'ally' | 'enemy' | null;
 }
 
 function emptyTally(): UnitTally {
@@ -107,7 +113,7 @@ export function makeEnemyUnit(typeId: string, idx: number, difficulty: 1 | 2): U
 
 export function createBattle(setup: BattleSetup): BattleState {
   const rng = new Rng(setup.seed);
-  const layout = rng.pick(LAYOUTS);
+  const layout = setup.layout !== undefined ? LAYOUTS[setup.layout % LAYOUTS.length] : rng.pick(LAYOUTS);
   const w = 8;
   const h = 8;
   const blocked = new Array(w * h).fill(false);
@@ -127,7 +133,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     decisions: [],
     result: null,
     floor: setup.floor,
-    isBossFloor: setup.floor === 4,
+    isBossFloor: false,
     difficulty: setup.difficulty,
     rngState: 0,
     tally: {},
@@ -156,12 +162,14 @@ export function createBattle(setup: BattleSetup): BattleState {
     s.units.push(u);
   });
 
-  const group = rng.pick(ENCOUNTERS[setup.floor]);
   const enemyTypes: string[] = [];
-  for (const [type, min, max] of group) {
-    const n = rng.int(min, max);
-    for (let i = 0; i < n; i++) enemyTypes.push(type);
-  }
+  if (setup.enemyTypes) enemyTypes.push(...setup.enemyTypes);
+  else
+    for (const [type, min, max] of rng.pick(ENCOUNTERS[setup.floor])) {
+      const n = rng.int(min, max);
+      for (let i = 0; i < n; i++) enemyTypes.push(type);
+    }
+  s.isBossFloor = enemyTypes.includes('boss');
   const spots: [number, number][] = [];
   for (let y = 0; y <= 1; y++) for (let x = 0; x < w; x++) if (!(x === 3 && y === 0)) spots.push([x, y]);
   rng.shuffle(spots);
@@ -177,12 +185,16 @@ export function createBattle(setup: BattleSetup): BattleState {
     s.units.push(e);
   });
 
+  const lagging = setup.initiative === 'ally' ? 'enemy' : setup.initiative === 'enemy' ? 'ally' : null;
   for (const u of s.units) {
     u.nextActAt = (1000 / u.spd) * rng.range(0.8, 1.0);
+    if (u.side === lagging) u.nextActAt += 1000 / u.spd;
     s.tally[u.id] = emptyTally();
   }
   s.rngState = rng.state;
-  s.log.push(`第 ${setup.floor} 层${s.isBossFloor ? '（首领层）' : ''}：遭遇 ${enemyTypes.map((t) => ENEMIES[t].name).join('、')}`);
+  s.log.push(`第 ${setup.floor} 层${s.isBossFloor ? '（首领战）' : ''}：遭遇 ${enemyTypes.map((t) => ENEMIES[t].name).join('、')}`);
+  if (setup.initiative === 'ally') s.log.push('【先手】敌人尚未察觉，我方先动');
+  if (setup.initiative === 'enemy') s.log.push('【遭伏击】敌方先动');
   beginNextTurn(s);
   return s;
 }

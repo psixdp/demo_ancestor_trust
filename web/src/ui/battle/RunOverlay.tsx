@@ -2,24 +2,27 @@ import { deriveStats } from '../../core/character';
 import { memberById } from '../../core/meta/growth';
 import { useGame } from '../../store/gameStore';
 
+/** Result panel: a won fight (back to the map) or the end of the run (settle). */
 export function RunOverlay() {
-  const { run, game, continueRun, retreatRun, settleRun } = useGame();
+  const { run, game, leaveBattle, settleRun } = useGame();
   if (!run || !game) return null;
-  const title =
-    run.phase === 'between'
-      ? `第 ${run.floor} 层 胜利`
-      : run.outcome === 'clear'
-        ? '地下城通关！'
-        : run.outcome === 'retreat'
-          ? '撤退'
-          : run.outcome === 'defeat'
-            ? '族长重伤 · 血遁秘术'
-            : '结算中…';
+  const roomWon = run.phase === 'explore';
+  const title = roomWon
+    ? '战斗胜利'
+    : run.outcome === 'clear'
+      ? '地下城通关！'
+      : run.outcome === 'retreat'
+        ? '撤退'
+        : run.outcome === 'defeat'
+          ? '族长重伤 · 血遁秘术'
+          : '结算中…';
+  const lines = roomWon ? run.floorLog.slice(-1) : run.floorLog;
+  const revived = roomWon ? run.events.filter((e) => e.startsWith('【血契唤醒】')).slice(-2) : [];
   return (
     <div className="overlay">
       <div className="panel col" style={{ minWidth: 360 }}>
         <h2 className={run.outcome === 'defeat' ? 'bad' : ''}>{title}</h2>
-        {run.floorLog.map((l, i) => (
+        {[...lines, ...revived].map((l, i) => (
           <div key={i} style={{ fontSize: 13 }}>
             {l}
           </div>
@@ -43,13 +46,10 @@ export function RunOverlay() {
           })}
         </div>
         <div className="row" style={{ justifyContent: 'flex-end' }}>
-          {run.phase === 'between' && (
-            <>
-              <button onClick={retreatRun}>撤退（保留全部战利品）</button>
-              <button className="primary" onClick={continueRun}>
-                继续前往第 {run.floor + 1} 层{run.floor + 1 === 4 ? '（首领）' : ''}
-              </button>
-            </>
+          {roomWon && (
+            <button className="primary" onClick={leaveBattle}>
+              返回地图
+            </button>
           )}
           {run.phase === 'done' && (
             <button className="primary" onClick={settleRun}>

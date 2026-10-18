@@ -25,6 +25,7 @@ import { DIRS, getUnit, key } from '../../core/battle/rules';
 import type { BattleFx, BattleState, Stance, Unit } from '../../core/types';
 import { useGame } from '../../store/gameStore';
 import { AiPanel } from './AiPanel';
+import { ExploreView } from './ExploreView';
 import { RunOverlay } from './RunOverlay';
 
 type Mode = { kind: 'move' } | { kind: 'skill'; id: string } | { kind: 'exec' };
@@ -127,7 +128,8 @@ export function BattleView() {
   }, [b, playerTurn, mode]);
   const execOptions = useMemo(() => (b && playerTurn ? executeTargets(b) : []), [b, playerTurn]);
 
-  if (!run || !b) return null;
+  if (!run) return null;
+  if (!b) return <ExploreView />;
 
   const cross = new Set<string>();
   for (const u of b.units) if (u.boss?.crossTiles && !u.downed) for (const [x, y] of u.boss.crossTiles) cross.add(key(x, y));
@@ -193,7 +195,7 @@ export function BattleView() {
       <div className="battle-left">
         <div className="row" style={{ width: '100%', justifyContent: 'space-between' }}>
           <h3 style={{ margin: 0 }}>
-            第 {b.floor} 层{b.isBossFloor ? ' · 首领层' : ''}
+            第 {b.floor} 层{b.isBossFloor ? ' · 首领战' : ''}
             {b.difficulty === 2 ? ' · 难度 II' : ''}
           </h3>
           <span className="dim">

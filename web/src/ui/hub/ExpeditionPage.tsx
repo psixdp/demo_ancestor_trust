@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { MEMORIES } from '../../config/memories';
 import { deriveStats, isAdult, possessionPreview } from '../../core/character';
+import { BAL } from '../../config/balance';
+import { canBuyBloodBags } from '../../core/meta/expedition';
 import { children, patriarch } from '../../core/meta/growth';
 import { useGame } from '../../store/gameStore';
 import { passiveInfo } from '../../config/passives';
@@ -10,7 +12,10 @@ export function ExpeditionPage() {
   const { game, startRun, setTab } = useGame();
   const [team, setTeam] = useState<string[]>([]);
   const [diff, setDiff] = useState<1 | 2>(1);
+  const [bags, setBags] = useState(0);
   if (!game) return null;
+  const bagsOpen = canBuyBloodBags(game);
+  const bagCount = bagsOpen ? Math.min(bags, BAL.bloodBagMax, Math.floor(game.gold / BAL.bloodBagPrice)) : 0;
   const pat = patriarch(game);
   const pst = deriveStats(pat, game.soul);
   const adults = children(game).filter(isAdult);
@@ -22,8 +27,8 @@ export function ExpeditionPage() {
     <div className="col">
       <h2>地下城出征 · 旧城区地下血库遗址</h2>
       <div className="panel dim">
-        共 4 层：1~3 层为普通遭遇，第 4 层为首领【审判官·格雷】。每层胜利后全员恢复 20% 生命，可继续或撤退（撤退保留全部战利品）。族长战败则血遁返回，战利品损失
-        50%。出征消耗当月时间，返回后自动进行月度结算。
+        共 4 层，每层是若干相连的房间：击破守卫房才能下楼，第 4 层是首领【审判官·格雷】的审判庭。支路敌群守着宝箱、可以绕开；血库残罐可休整一次；撞上巡逻队会被伏击。下楼时全员恢复{' '}
+        {Math.round(BAL.floorHeal * 100)}% 生命，不在战斗中可随时撤退（保留全部战利品）。族长战败则血遁返回，战利品损失 50%。出征消耗当月时间，返回后自动进行月度结算。
       </div>
       <div className="panel col">
         <h4>族长</h4>
@@ -99,6 +104,18 @@ export function ExpeditionPage() {
           })}
         </div>
       </div>
+      <div className="panel row">
+        <span>血袋（每袋 {BAL.bloodBagPrice} 金，探索中对单人使用，回复 {Math.round(BAL.bloodBagHeal * 100)}% 生命）：</span>
+        {bagsOpen ? (
+          Array.from({ length: BAL.bloodBagMax + 1 }, (_, n) => (
+            <button key={n} className={bagCount === n ? 'active' : ''} disabled={n * BAL.bloodBagPrice > game.gold} onClick={() => setBags(n)}>
+              {n}
+            </button>
+          ))
+        ) : (
+          <span className="dim">血浆站有人在岗后才能购买</span>
+        )}
+      </div>
       <div className="row">
         <span>难度：</span>
         <button className={diff === 1 ? 'active' : ''} onClick={() => setDiff(1)}>
@@ -108,8 +125,8 @@ export function ExpeditionPage() {
           II（敌人 ×1.4，掉落 ×1.6，需 B 级）
         </button>
         <span className="grow" />
-        <button className="primary" disabled={valid.length === 0} onClick={() => startRun(valid, diff)}>
-          出征 ▶
+        <button className="primary" disabled={valid.length === 0} onClick={() => startRun(valid, diff, bagCount)}>
+          出征 ▶{bagCount > 0 ? `（花费 ${bagCount * BAL.bloodBagPrice} 金）` : ''}
         </button>
       </div>
     </div>
