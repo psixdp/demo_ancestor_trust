@@ -61,6 +61,8 @@ interface Store {
   takeStairs(): void;
   leaveBattle(): void;
   retreatRun(): void;
+  /** Debug: drop the ongoing fight and return to before its room was entered. */
+  retreatFromBattle(): void;
   settleRun(): void;
 }
 
@@ -220,6 +222,9 @@ export const useGame = create<Store>((set, get) => ({
   },
   retreatRun() {
     get().explore((_, run) => X.retreatRun(run));
+  },
+  retreatFromBattle() {
+    get().explore((_, run) => X.retreatFromBattle(run));
   },
   settleRun() {
     const { run, game: curGame } = get();

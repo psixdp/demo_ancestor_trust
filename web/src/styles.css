@@ -760,7 +760,7 @@ input.tuned {
   border-color: transparent;
 }
 .room.unvisited {
-  opacity: 0.65;
+  opacity: 0.85;
   border-style: dashed;
 }
 .room.hostile {

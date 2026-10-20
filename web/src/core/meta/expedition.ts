@@ -17,7 +17,7 @@ import {
   patriarch,
   stressCheck,
 } from './growth';
-import { LAST_FLOOR, ROOM_NAMES, generateFloor, linked, pathTo, reveal, roomAt, stepPatrol, type FloorMap, type Room } from './floorMap';
+import { LAST_FLOOR, ROOM_NAMES, generateFloor, linked, pathTo, roomAt, stepPatrol, visit, type FloorMap, type Room } from './floorMap';
 import { advanceMonth } from './month';
 import { unitFromCharacter } from './units';
 
@@ -44,6 +44,8 @@ export interface RunState {
   /** kept after a won fight until the player leaves the battle screen */
   battle: BattleState | null;
   battleAt: { roomId: number; patrol: boolean } | null;
+  /** debug: the run as it was before walking into the room of the ongoing fight */
+  beforeBattle: RunSnapshot | null;
   phase: 'explore' | 'battle' | 'done';
   outcome: 'retreat' | 'clear' | 'defeat' | null;
   floorLog: string[];
@@ -51,6 +53,8 @@ export interface RunState {
   events: string[];
   stats: { aiBreaches: number; executionsOnAiBreach: number; stanceSwitches: number };
 }
+
+type RunSnapshot = Omit<RunState, 'battle' | 'beforeBattle'>;
 
 export type StartResult = { ok: true; run: RunState } | { ok: false; msg: string };
 
@@ -125,6 +129,7 @@ export function startRun(g: GameState, childIds: string[], difficulty: 1 | 2, bl
     bloodBags,
     battle: null,
     battleAt: null,
+    beforeBattle: null,
     phase: 'explore',
     outcome: null,
     floorLog: [],
@@ -162,30 +167,42 @@ export function canMoveTo(run: RunState, roomId: number): boolean {
 export function moveTo(g: GameState, run: RunState, roomId: number): boolean {
   if (!canMoveTo(run, roomId)) return false;
   run.battle = null;
+  const { battle: _b, beforeBattle: _p, ...rest } = run;
+  const before: RunSnapshot = structuredClone(rest);
   run.roomId = roomId;
   run.steps += 1;
-  reveal(run.map, roomId);
+  visit(run.map, roomId);
   const room = roomAt(run.map, roomId);
   note(run, `进入${ROOM_NAMES[room.kind]}`);
   if (room.enemies) {
     const sneak = hasPassive(patriarch(g), g.soul, 'nightAmbush');
     if (sneak) note(run, '【夜行先机】敌人尚未察觉');
     startBattle(g, run, room, room.enemies, sneak ? 'ally' : null, false);
-    return true;
+  } else {
+    const patrol = run.map.patrol;
+    if (patrol && patrol.roomId === roomId) {
+      note(run, '一头撞上了巡逻队！');
+      startBattle(g, run, room, patrol.enemies, 'enemy', true);
+    } else {
+      const rng = new Rng(g.rngState);
+      stepPatrol(run.map, run.steps, rng);
+      g.rngState = rng.state;
+      if (patrol && patrol.roomId === roomId) {
+        note(run, '巡逻队摸进了这个房间！');
+        startBattle(g, run, room, patrol.enemies, 'enemy', true);
+      }
+    }
   }
-  const patrol = run.map.patrol;
-  if (patrol && patrol.roomId === roomId) {
-    note(run, '一头撞上了巡逻队！');
-    startBattle(g, run, room, patrol.enemies, 'enemy', true);
-    return true;
-  }
-  const rng = new Rng(g.rngState);
-  stepPatrol(run.map, run.steps, rng);
-  g.rngState = rng.state;
-  if (patrol && patrol.roomId === roomId) {
-    note(run, '巡逻队摸进了这个房间！');
-    startBattle(g, run, room, patrol.enemies, 'enemy', true);
-  }
+  run.beforeBattle = run.phase === 'battle' ? before : null;
+  return true;
+}
+
+/** Debug: abandons the ongoing fight and puts the run back to just before the room was entered. */
+export function retreatFromBattle(run: RunState): boolean {
+  const before = run.beforeBattle;
+  if (run.phase !== 'battle' || !before || run.battle?.result) return false;
+  Object.assign(run, before, { battle: null, beforeBattle: null });
+  note(run, '（调试）撤出战斗，回到进入房间之前');
   return true;
 }
 
@@ -209,6 +226,7 @@ function mergeTally(into: UnitTally | undefined, t: UnitTally): UnitTally {
 export function finishBattle(g: GameState, run: RunState) {
   const b = run.battle;
   if (!b || !b.result || run.phase !== 'battle') return;
+  run.beforeBattle = null;
   const rng = new Rng(g.rngState);
   for (const u of b.units) {
     if (u.side !== 'ally' || !u.charId) continue;

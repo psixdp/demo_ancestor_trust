@@ -93,7 +93,7 @@ function useFloatingFx(s: BattleState | null): { items: Floating[]; busyUntil: M
 }
 
 export function BattleView() {
-  const { run, battle, debug, aiDelay } = useGame();
+  const { run, battle, debug, aiDelay, retreatFromBattle } = useGame();
   const b = run?.battle ?? null;
   const [mode, setMode] = useState<Mode>({ kind: 'move' });
   const [selected, setSelected] = useState<string | null>(null);
@@ -327,6 +327,13 @@ export function BattleView() {
                 下一步 ▶
               </button>
             )}
+          </div>
+        )}
+        {debug.enabled && !b.result && run.beforeBattle && (
+          <div className="row">
+            <button className="small" onClick={retreatFromBattle} title="放弃这场战斗，队伍血量、倒地、步数、巡逻队与战利品都回到进入房间之前">
+              撤退（调试）：回到进房前
+            </button>
           </div>
         )}
         {sel && <UnitInfo u={sel} s={b} />}

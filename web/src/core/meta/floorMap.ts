@@ -14,7 +14,6 @@ export interface Room {
   enemies: string[] | null;
   /** index into LAYOUTS, used when a fight breaks out here */
   layout: number;
-  seen: boolean;
   visited: boolean;
   /** rest point drunk or chest opened */
   used: boolean;
@@ -100,12 +99,8 @@ export function pathTo(map: FloorMap, from: number, to: number, avoid: (r: Room)
   return path;
 }
 
-/** Marks a room visited and reveals it and every room linked to it. */
-export function reveal(map: FloorMap, id: number) {
-  const r = roomAt(map, id);
-  r.visited = true;
-  r.seen = true;
-  for (const n of neighbors(map, id)) roomAt(map, n).seen = true;
+export function visit(map: FloorMap, id: number) {
+  roomAt(map, id).visited = true;
 }
 
 function tryGenerate(floor: number, rng: Rng): FloorMap | null {
@@ -149,7 +144,6 @@ function tryGenerate(floor: number, rng: Rng): FloorMap | null {
       kind,
       enemies,
       layout: rng.int(0, LAYOUTS.length - 1),
-      seen: false,
       visited: false,
       used: false,
     };
@@ -158,7 +152,7 @@ function tryGenerate(floor: number, rng: Rng): FloorMap | null {
 
   const beats = rooms.filter((r) => r.kind === 'empty' || r.kind === 'rest');
   if (PATROLS[floor] && beats.length) map.patrol = { roomId: rng.pick(beats).id, enemies: rollGroup(rng, PATROLS[floor]) };
-  reveal(map, map.entryId);
+  visit(map, map.entryId);
   return map;
 }
 

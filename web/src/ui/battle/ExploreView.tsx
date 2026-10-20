@@ -41,7 +41,7 @@ export function ExploreView() {
       if (gx % 2 === 0 && gy % 2 === 0) {
         const id = (gy / 2) * MAP_W + gx / 2;
         const room = map.rooms.find((r) => r.id === id);
-        if (!room || !room.seen) {
+        if (!room) {
           cells.push(<div key={k} className="room void" />);
           continue;
         }
@@ -67,10 +67,7 @@ export function ExploreView() {
       } else if (gx % 2 !== gy % 2) {
         const a = gx % 2 === 1 ? (gy / 2) * MAP_W + (gx - 1) / 2 : ((gy - 1) / 2) * MAP_W + gx / 2;
         const b = gx % 2 === 1 ? a + 1 : a + MAP_W;
-        const ra = map.rooms.find((r) => r.id === a);
-        const rb = map.rooms.find((r) => r.id === b);
-        const show = ra && rb && (ra.seen || rb.seen) && (ra.visited || rb.visited) && linked(map, a, b);
-        cells.push(<div key={k} className={`door ${gx % 2 === 1 ? 'h' : 'v'} ${show ? 'open' : ''}`} />);
+        cells.push(<div key={k} className={`door ${gx % 2 === 1 ? 'h' : 'v'} ${linked(map, a, b) ? 'open' : ''}`} />);
       } else {
         cells.push(<div key={k} />);
       }
@@ -90,7 +87,7 @@ export function ExploreView() {
           </span>
         </div>
         <div className="dim" style={{ fontSize: 12 }}>
-          点击相邻房间前进。守卫房是下楼的必经之路；支路敌群守着宝箱，可以绕开。巡逻队每走 {BAL.patrolEvery} 步移动一次，撞上它会被伏击（敌方先动）。
+          整层房间与其中的敌人一目了然，点击相连的房间前进。守卫房是下楼的必经之路；支路敌群守着宝箱，可以绕开。巡逻队每走 {BAL.patrolEvery} 步移动一次，撞上它会被伏击（敌方先动）。
         </div>
         <div style={{ position: 'relative' }}>
           <div className="dungeon">{cells}</div>

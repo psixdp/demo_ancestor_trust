@@ -1,6 +1,6 @@
 import { createBattle } from '../src/core/battle/engine';
 import { deriveStats } from '../src/core/character';
-import { finishBattle, moveTo, settleRun, startRun, takeStairs, useRest, type RunState } from '../src/core/meta/expedition';
+import { finishBattle, moveTo, retreatFromBattle, settleRun, startRun, takeStairs, useRest, type RunState } from '../src/core/meta/expedition';
 import { generateFloor, neighbors, pathTo, roomAt, type FloorMap } from '../src/core/meta/floorMap';
 import { memberById } from '../src/core/meta/growth';
 import { createNewGame } from '../src/core/meta/newGame';
@@ -106,6 +106,42 @@ describe('downed children', () => {
     run.outcome = 'retreat';
     settleRun(g, run);
     expect(memberById(g, 'c2')!.traumas.length).toBe(traumas + 1);
+  });
+});
+
+describe('debug retreat from a fight', () => {
+  it('puts the run back to just before the fight room was entered', () => {
+    const g = createNewGame(5);
+    const run = begin(g);
+    const guard = run.map.rooms.find((r) => r.kind === 'guard')!;
+    let before = structuredClone(run);
+    while (run.phase === 'explore') {
+      before = structuredClone(run);
+      moveTo(g, run, pathTo(run.map, run.roomId, guard.id)![1]);
+    }
+    run.battle!.units.find((u) => u.id === 'c1')!.hp = 1;
+    run.hp.c1 = 1;
+
+    expect(retreatFromBattle(run)).toBe(true);
+    expect({ ...run, events: [] }).toEqual({ ...before, events: [] });
+    expect(run.events.at(-1)).toContain('撤出战斗');
+    expect(run.hp.c1).toBe(before.hp.c1);
+
+    moveTo(g, run, pathTo(run.map, run.roomId, guard.id)![1]);
+    expect(run.phase).toBe('battle');
+    expect(retreatFromBattle(run)).toBe(true);
+    run.battle = null;
+    expect(retreatFromBattle(run)).toBe(false);
+  });
+
+  it('is not offered once the fight is decided', () => {
+    const g = createNewGame(5);
+    const run = begin(g);
+    walkIntoFight(g, run);
+    winWithC2Down(run);
+    expect(retreatFromBattle(run)).toBe(false);
+    finishBattle(g, run);
+    expect(run.beforeBattle).toBeNull();
   });
 });
 
